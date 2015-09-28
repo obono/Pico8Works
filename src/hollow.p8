@@ -84,123 +84,6 @@ end
 
 -- game functions
 
-function rndi(x)
- return flr(rnd(x))
-end
-
-function set_column(x,t,b)
- local i
- for i=0,15 do
-  -- top
-  if (i*8<t-7) then v=8
-  elseif (i*8>t) then v=0
-  else v=t%8
-  end
-  mset(x,i+4,v)
-  -- bottom
-  if (i*8<b-7) then v=0
-  elseif (i*8>b) then v=8
-  else v=b%8+8
-  end
-  mset(x,i+20,v)
- end
- ct[x]=t
- cb[x]=b
-end
-
-function adjust_gap(x, g)
- local d,h,l,r,y
- d=cb[x]-ct[x]
- h=rndi(3)
- if (g) h=8-h
- l=flr((cb[x]-58)/12)
- r=rndi(17-abs(h-d)-abs(l))-8
- if (h>d) r+=h-d
- if (l<0) r-=l
- y=mid(32,cb[x]+r,96)
- return y-h,y
-end
-
-function grow_cave()
- local t,b,g
- cm-=1 g=(cm<0)
- t,b=adjust_gap(cp,g)
- cp=(cp+1)%18
- set_column(cp,t,b)
- if (g) then
-  cm=(rnd(1)+1)*sc/128+1
- end
- if (gc==0) then
-  sc+=1
-  if (sc%200==0) start_music()
- end
-end 
-
-function handle_input()
- if ((cx+px)%8>0) return
- pv=0 pw=0
- if (btn(0)) pv=-1 pf=true
- if (btn(1) or gc>0) then
-  pv=1 pf=false
- end
- local p=(pp+pv)%18
- local g=min(cb[pp]-ct[p],
-  cb[p]-ct[pp])+cg
- if (px+pv<0 or g<8 or pe) then
-  pv=0 pa=0
- elseif (pv!=0) then
-  pw=(cb[p]-cb[pp])/4
-  pp=p
-  if (px+pv>56) grow_cave()
-  sfx(0)
- end
-end
-
-function move_player()
- if (px+pv>56) then
-  cx=(cx+pv*2)%144
- else
-  px+=pv*2
- end
- py+=pw
- if (pv!=0) then
-  pa=(pa+1)%4
- else
-  pa=0
- end
-end
-
-function start_music()
- local i,s
- s=max(13-flr(sc/200),6)
- -- set speed
- for i=8,11 do
-  poke(0x3241+i*68,s)
- end
- music(0,0,3)
-end
-
-function judge_crushed()
- cs=(cs+1)%192
- if (cs==0) then
-  if (cb[pp]-ct[pp]<4) then
-   pe=true music(-1,0,3)
-  end
-  cr+=2
- end
- if (cs==187) sfx(1)
-end
-
-function game_over()
- cs+=.5
- if (btnp(4) or btnp(5)) then
-  init_game()
- elseif (cs>=128) then
-  init_title()
- end
- if (cs==8) sfx(3)
-end
-
 function init_game()
  gm=3
  gc=60
@@ -244,6 +127,123 @@ function update_game()
   if (gc==0) start_music()
  end
  gd=true
+end
+
+function set_column(x,t,b)
+ local i
+ for i=0,15 do
+  -- top
+  if (i*8<t-7) then v=8
+  elseif (i*8>t) then v=0
+  else v=t%8
+  end
+  mset(x,i+4,v)
+  -- bottom
+  if (i*8<b-7) then v=0
+  elseif (i*8>b) then v=8
+  else v=b%8+8
+  end
+  mset(x,i+20,v)
+ end
+ ct[x]=t
+ cb[x]=b
+end
+
+function grow_cave()
+ local t,b,g
+ cm-=1 g=(cm<0)
+ t,b=adjust_gap(cp,g)
+ cp=(cp+1)%18
+ set_column(cp,t,b)
+ if (g) then
+  cm=(rnd(1)+1)*sc/128+1
+ end
+ if (gc==0) then
+  sc+=1
+  if (sc%200==0) start_music()
+ end
+end 
+
+function adjust_gap(x, g)
+ local d,h,l,r,y
+ d=cb[x]-ct[x]
+ h=rndi(3)
+ if (g) h=8-h
+ l=flr((cb[x]-58)/12)
+ r=rndi(17-abs(h-d)-abs(l))-8
+ if (h>d) r+=h-d
+ if (l<0) r-=l
+ y=mid(32,cb[x]+r,96)
+ return y-h,y
+end
+
+function rndi(x)
+ return flr(rnd(x))
+end
+
+function start_music()
+ local i,s
+ s=max(13-flr(sc/200),6)
+ -- set speed
+ for i=8,11 do
+  poke(0x3241+i*68,s)
+ end
+ music(0,0,3)
+end
+
+function handle_input()
+ if ((cx+px)%8>0) return
+ pv=0 pw=0
+ if (btn(0)) pv=-1 pf=true
+ if (btn(1) or gc>0) then
+  pv=1 pf=false
+ end
+ local p=(pp+pv)%18
+ local g=min(cb[pp]-ct[p],
+  cb[p]-ct[pp])+cg
+ if (px+pv<0 or g<8 or pe) then
+  pv=0 pa=0
+ elseif (pv!=0) then
+  pw=(cb[p]-cb[pp])/4
+  pp=p
+  if (px+pv>56) grow_cave()
+  sfx(0)
+ end
+end
+
+function move_player()
+ if (px+pv>56) then
+  cx=(cx+pv*2)%144
+ else
+  px+=pv*2
+ end
+ py+=pw
+ if (pv!=0) then
+  pa=(pa+1)%4
+ else
+  pa=0
+ end
+end
+
+function judge_crushed()
+ cs=(cs+1)%192
+ if (cs==0) then
+  if (cb[pp]-ct[pp]<4) then
+   pe=true music(-1,0,3)
+  end
+  cr+=2
+ end
+ if (cs==187) sfx(1)
+end
+
+function game_over()
+ cs+=.5
+ if (btnp(4) or btnp(5)) then
+  init_game()
+ elseif (cs>=128) then
+  init_title()
+ end
+ if (cs==8) sfx(3)
 end
 
 function draw_game()
