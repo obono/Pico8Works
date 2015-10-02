@@ -24,7 +24,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p01 ver 0.60",
+ print("obn-p01 ver 0.61",
    32,82,6)
 end
 
@@ -78,7 +78,8 @@ function draw_title()
   print("press any button",
     32,88,7)
  end
- print("2015.09 programmed by obono",
+ print("2015.10 "..
+   "programmed by obono",
    10,112,5)
 end
 
@@ -96,6 +97,7 @@ function init_game()
  cx=0 -- scroll offset
  cp=7 -- next column pos
  cm=1 -- next hollow counter
+ cq={} -- fragments
  pp=0 -- player logical pos
  px=0 -- player x
  py=72 -- player y
@@ -117,6 +119,7 @@ end
 
 function update_game()
  calc_gap()
+ update_fragments()
  handle_input()
  move_player()
  if (pe) then
@@ -197,6 +200,21 @@ function start_music()
  music(0,0,3)
 end
 
+function update_fragments()
+ foreach(cq,fall_fragment)
+ if (gc==0 and rnd(128)>cs) then
+  local x=rnd(144)
+  local y=cv[flr(x/8)].t+ct
+  add(cq,{x=x,y=y,w=0})
+ end
+end
+
+function fall_fragment(q)
+ q.y+=q.w q.w+=0.125
+ local p=flr(q.x/8)
+ if (q.y>=cv[p].b+cb) del(cq,q)
+end
+
 function handle_input()
  if ((cx+px)%8>0) return
  pv=0 pw=0
@@ -256,6 +274,7 @@ function draw_game()
  cls()
  draw_background()
  draw_ridges()
+ foreach(cq,draw_fragment)
  draw_player()
  draw_cave()
  draw_strings()
@@ -284,9 +303,13 @@ function draw_ridges()
  pal(2,2)
 end
 
+function draw_fragment(q)
+ pset((q.x-cx)%144,q.y,5)
+end
+
 function draw_player()
  local y=max(py+cb,cv[pp].t+ct)
- if (pe) y=cv[pp].t+b
+ if (pe) y=cv[pp].t+cb
  spr(16+pa,px,y,1,1,pf)
 end
 
