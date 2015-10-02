@@ -87,11 +87,12 @@ end
 function init_game()
  gm=3
  gc=60
- ct={} -- top of column
- cb={} -- bottom of column
+ cv={} -- columns of cave
  cs=0 -- wave phase
  cr=32 -- wave amplitude
  cg=0 -- current gap size
+ ct=0 -- top offset
+ cb=0 -- bottom offset
  cx=0 -- scroll offset
  cp=7 -- next column pos
  cm=1 -- next hollow counter
@@ -115,7 +116,7 @@ function init_game()
 end
 
 function update_game()
- cg=flr((1-cos(cs/192))*cr)
+ calc_gap()
  handle_input()
  move_player()
  if (pe) then
@@ -127,6 +128,13 @@ function update_game()
   if (gc==0) start_music()
  end
  gd=true
+end
+
+function calc_gap()
+ cg=flr((1-cos(cs/192))*cr)
+ ct=-flr(cg/2)
+ if (cs>=187) ct+=cs%2
+ cb=ct+cg
 end
 
 function set_column(x,t,b)
@@ -145,16 +153,13 @@ function set_column(x,t,b)
   end
   mset(x+18,i+16,v)
  end
- ct[x]=t
- cb[x]=b
+ cv[x]={t=t,b=b}
 end
 
 function grow_cave()
  local t,b,g
  cm-=1 g=(cm<0)
- t,b=adjust_gap(cp,g)
- cp=(cp+1)%18
- set_column(cp,t,b)
+ extend_column(g)
  if (g) then
   cm=(rnd(1)+1)*sc/128+1
  end
@@ -164,17 +169,18 @@ function grow_cave()
  end
 end 
 
-function adjust_gap(x, g)
+function extend_column(g)
  local d,h,l,r,y
- d=cb[x]-ct[x]
+ d=cv[cp].b-cv[cp].t
  h=rndi(3)
  if (g) h=8-h
- l=flr((cb[x]-58)/12)
+ l=flr((cv[cp].b-58)/12)
  r=rndi(17-abs(h-d)-abs(l))-8
  if (h>d) r+=h-d
  if (l<0) r-=l
- y=mid(32,cb[x]+r,96)
- return y-h,y
+ y=mid(32,cv[cp].b+r,96)
+ cp=(cp+1)%18
+ set_column(cp,y-h,y)
 end
 
 function rndi(x)
@@ -199,12 +205,12 @@ function handle_input()
   pv=1 pf=false
  end
  local p=(pp+pv)%18
- local g=min(cb[pp]-ct[p],
-  cb[p]-ct[pp])+cg
+ local g=min(cv[pp].b-cv[p].t,
+  cv[p].b-cv[pp].t)+cg
  if (px+pv<0 or g<8 or pe) then
   pv=0 pa=0
  elseif (pv!=0) then
-  pw=(cb[p]-cb[pp])/4
+  pw=(cv[p].b-cv[pp].b)/4
   pp=p
   if (px+pv>56) grow_cave()
   sfx(0)
@@ -228,7 +234,7 @@ end
 function judge_crushed()
  cs=(cs+1)%192
  if (cs==0) then
-  if (cb[pp]-ct[pp]<4) then
+  if (cv[pp].b-cv[pp].t<4) then
    pe=true music(-1,0,3)
   end
   cr+=2
@@ -248,37 +254,52 @@ end
 
 function draw_game()
  cls()
- local t=-flr(cg/2)
- if (cs>=187) t+=cs%2
- local b=t+cg
- -- background
+ draw_background()
+ draw_ridges()
+ draw_player()
+ draw_cave()
+ draw_strings()
+end
+
+function draw_background()
  local i,x
  for i=0,3 do
   x=i*48-cx/3
   map(0,4,x,0,6,8)
   map(0,4,x,64,6,8)
  end
- -- ridges
- rectfill(0,-1,127,49+t/2,0)
- rectfill(0,82+b/2,127,128,0)
+end
+
+function draw_ridges()
+ local t,b=ct/2,cb/2
+ rectfill(0,-1,127,49+t,0)
+ rectfill(0,82+b,127,128,0)
  pal(2,0)
+ local i,x
  for i=0,2 do
   x=i*72-cx/2
-  map(6,4,x,50+t/2,9,4)
-  map(6,8,x,50+b/2,9,4)
+  map(6,4,x,50+t,9,4)
+  map(6,8,x,50+b,9,4)
  end
  pal(2,2)
- -- player
- local y=max(py+b,ct[pp]+t)
- if (pe) y=ct[pp]+b
+end
+
+function draw_player()
+ local y=max(py+cb,cv[pp].t+ct)
+ if (pe) y=cv[pp].t+b
  spr(16+pa,px,y,1,1,pf)
- -- top
- map(0,16,-cx,t,18,16)
- map(0,16,144-cx,t,18,16)
- -- bottom
- map(18,16,-cx,b,18,16)
- map(18,16,144-cx,b,18,16)
- -- strings
+end
+
+function draw_cave()
+ map(0,16,-cx,ct,18,16)
+ map(18,16,-cx,cb,18,16)
+ if (cx>16) then
+  map(0,16,144-cx,ct,18,16)
+  map(18,16,144-cx,cb,18,16)
+ end
+end
+
+function draw_strings()
  print("score "..sc,6,6,7)
  if (gc>0) then
   print("ready?",52,61,7)
