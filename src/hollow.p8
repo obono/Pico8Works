@@ -2,8 +2,11 @@ pico-8 cartridge // http://www.pico-8.com
 version 4
 __lua__
 
--- hollow seeker
--- by obono
+-- hollow seeker v0.61
+
+--copyright (c) 2015 obono
+--released under the mit license
+--http://opensource.org/licenses/mit
 
 -- bland logo
 
