@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 5
 __lua__
 
--- chie no magari ita v0.20
+-- chie no magari ita v0.21
 
 --copyright (c) 2016 obono
 --released under the mit license
@@ -27,7 +27,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p03 ver 0.20",
+ print("obn-p03 ver 0.21",
    32,82,6)
 end
 
@@ -99,20 +99,21 @@ function init_game()
  end
  update_field()
  cm=0 cx,cy=8,8 cp=nil
+ tm=0
  sfx(0)
  gd=true
+ gp=true
 end
 
 function update_game()
- if(false)then
-  game_over()
- elseif(gc==0)then
+ if(gc==0)then
   handle_input()
+  tm+=1
  else
   gc-=1
-  if(gc==0)start_music()
-  gd=true
+  if(gc==0)start_music() gp=true
  end
+ gd=true
 end
 
 function rndi(x)
@@ -131,7 +132,7 @@ function handle_input()
  if(btnp(3))w+=1
  if(btnp(4))then
   if(cm>0)then
-   cm=3-cm gd=true
+   cm=3-cm gp=true
   else
    music(-1,0,3)
    init_title()
@@ -145,14 +146,14 @@ function handle_input()
    cx,cy=cp.x,cp.y
    cm=0 sfx(3)
   end
-  gd=true
+  gp=true
  end
 
  if(v!=0 or w!=0)then
   if(cm==0)move_cursor(v,w)
   if(cm==1)move_piece(cp,v,w)
   if(cm==2)rotate_piece(cp,v,w)
-  gd=true
+  gp=true
  end
 end
 
@@ -261,10 +262,14 @@ function info_piece(p)
 end
 
 function draw_game()
- cls()
- draw_background()
- for p in all(piece) do
-  draw_piece(p)
+ if(gp)then
+  cls()
+  draw_background()
+  for p in all(piece) do
+   draw_piece(p)
+  end
+ else
+  if (cp!=nil)draw_piece(cp)
  end
  draw_strings()
  draw_cursor()
@@ -278,13 +283,13 @@ end
 function draw_piece(p)
  local sx,sy,sw,sh,dx,dy=
    info_piece(p)
- if(p==cp)then
-  pal(1,7)
- else
-  pal(1,0)
- end
+ local c,z=abs(tm%4-1),0
+ if(p==cp)z=max(c*8-3,0)
+ pal(1,z)
  for i=0,2 do
-  pal(5+i,sget(i,7+p.t))
+  z=i
+  if(p==cp and cm>0)z=min(i+c,2)
+  pal(5+i,sget(z,7+p.t))
  end
  map(sx,sy,dx*8-4,dy*8-8,sw,sh)
  pal()
