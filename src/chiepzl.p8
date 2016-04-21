@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 5
 __lua__
 
--- chie no magari ita v0.21
+-- chie no magari ita v0.23
 
 --copyright (c) 2016 obono
 --released under the mit license
@@ -27,7 +27,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p03 ver 0.22",
+ print("obn-p03 ver 0.23",
    32,82,6)
 end
 
@@ -59,15 +59,21 @@ end
 function init_start()
  gm=3
  gc=52
- tm=0
+ wall={t=0}
+ field={}
+ local i
+ for i=1,15 do
+  field[i]={}
+ end
  reset_pieces()
  sfx(0)
+ tm=0
  gd=true
 end
 
 function update_start()
  gc-=1
- if(gc<=0)init_game()
+ if(gc<=0)init_game(true)
  gd=true
 end
 
@@ -103,25 +109,64 @@ function draw_stamp(x,y)
  pal()
 end
 
--- game functions
+-- menu
 
-function init_game()
- local i
+function init_menu()
  gm=4
- wall={t=0}
- field={}
- for i=1,15 do
-  field[i]={}
+ cu=0
+ sfx(2)
+ gd=true
+end
+
+function update_menu()
+ local vx,vy=handle_dpad()
+ if(vy!=0)then
+  cu=(cu+vy)%3
+  sfx(4)
+  gd=true
  end
- update_field()
- cm=false cr=false cu=false
- cx,cy=8,8 cp=nil
- start_music()
+ if(btnp(4))then
+  sfx(3)
+  init_game(false)
+ elseif(btnp(5))then
+  if(cu==0)then
+   sfx(3)
+   init_game(false)
+  elseif(cu==1)then
+   sfx(7)
+   reset_pieces()
+   init_game(false)
+  elseif(cu==2)then
+  end
+ end
+end
+
+function draw_menu()
+ rectfill(32,44,95,75,0)
+ rect(32,44,95,75,5)
+ local s={"continue","reset",
+   "gallery"}
+ local i,c
+ for i=0,2 do
+  c=5 if(i==cu)c=7
+  print(s[i+1],48,49+i*8,c)
+ end
+ print(">",40,49+cu*8,7)
+ draw_instruction()
+end
+
+-- game
+
+function init_game(z)
+ gm=5
  gd=true
  gp=true
+ if(z)music(0,0,3)
 end
 
 function reset_pieces()
+ cm=false cr=false
+ cx,cy=8,8 cp=nil
  piece={
   {t=1, r=0,x=7, y=2 },
   {t=2, r=0,x=13,y=2 },
@@ -134,15 +179,12 @@ function reset_pieces()
   {t=9, r=0,x=5, y=14},
   {t=10,r=5,x=10,y=14},
  }
+ update_field()
 end
 
 function update_game()
  local vx,vy=handle_dpad()
- if(cu)then
-  if(btnp(4) or btnp(5))then
-   cu=false gp=true
-  end
- elseif(cm)then
+ if(cm)then
   cr=btn(4)
   if(cr)then
    rotate_piece(cp,vx,vy)
@@ -155,19 +197,11 @@ function update_game()
   if(btnp(5) and cp!=nil)then
    cm=true gp=true sfx(2)
   elseif(btnp(4))then
-   cu=true gp=true
+   init_menu()
   end
  end
  tm+=1
  gd=true
-end
-
-function rndi(x)
- return flr(rnd(x))
-end
-
-function start_music()
- music(0,0,3)
 end
 
 function handle_dpad()
@@ -234,7 +268,12 @@ function release_piece()
   cy-=1
   if(field[cy][cx]!=cp)cy+=2
  end
- cm=false sfx(3)
+ cm=false
+ if(cq==10)then
+  sfx(8)
+ else
+  sfx(3)
+ end
 end
 
 function update_field()
@@ -309,16 +348,13 @@ function draw_game()
   for p in all(piece) do
    draw_piece(p)
   end
-  if(cu)draw_menu()
   gp=false
  else
-  if(cp!=nil and not cu)then
-   draw_piece(cp)
-  end
+  if(cp!=nil)draw_piece(cp)
  end
  draw_strings()
  draw_instruction()
- if(not(cm or cu))draw_cursor()
+ if(not cm)draw_cursor()
  --draw_debug()
 end
 
@@ -330,7 +366,7 @@ end
 function draw_piece(p)
  local sx,sy,sw,sh,dx,dy=
    info_piece(p)
- local c,z=abs(tm%4-1),0
+ local c,z=abs(tm%12-5)/3,0
  if(p==cp)z=c
  pal(1,sget(z,18))
  for i=0,2 do
@@ -342,14 +378,6 @@ function draw_piece(p)
  pal()
 end
 
-function draw_menu()
- rectfill(32,44,95,75,0)
- rect(32,44,95,75,5)
- print("> continue",40,49,6)
- print("reset",48,57,6)
- print("gallery",48,65,6)
-end
-
 function draw_strings()
  if(not cm and cq==10)then
   print("completed",46,12,7)
@@ -359,7 +387,7 @@ end
 function draw_instruction()
  local sd,s1,s2=
    "move","mode","release"
- if(cu)then
+ if(gm==4)then
   s1,s2="back","decide"
  elseif(not cm)then
   s1,s2="menu",""
@@ -403,6 +431,7 @@ update_fn={
  update_logo,
  update_title,
  update_start,
+ update_menu,
  update_game
 }
 
@@ -414,6 +443,7 @@ draw_fn={
  draw_logo,
  draw_title,
  draw_start,
+ draw_menu,
  draw_game
 }
 
@@ -594,6 +624,8 @@ __sfx__
 00010000130220b022040120000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000200000c56011561185511d55124541295413053135531000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000300002e1633d1432e1333d1232e1133d1132e1133d113000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000200003b5703b50037500395703250039500375703b5403350035570395403950033570375403b5203157035540395202f57033540375202d57031540355202b5702f54033520325002d54031520300002b540
+010300000f0761b07627076330763f0713f0733f0713f0733f0713f0733f0713f0733f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0613f0513f0413f0313f0213f011
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 013000100c3751035513355103550c3751135515355113550c3751035513355103550b3750e355133550e35500000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -649,10 +681,8 @@ __sfx__
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
-03 08424344
+03 0a424344
 00 41424344
 00 41424344
 00 41424344
