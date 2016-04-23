@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 5
 __lua__
 
--- chie no magari ita v0.23
+-- chie no magari ita v0.24
 
 --copyright (c) 2016 obono
 --released under the mit license
@@ -11,6 +11,7 @@ __lua__
 -- bland logo
 
 function init_logo()
+ cartdata("obono_chiepzl")
  gm=1
  gc=60 -- wait 2s
  gd=true
@@ -27,7 +28,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p03 ver 0.23",
+ print("obn-p03 ver 0.24",
    32,82,6)
 end
 
@@ -66,6 +67,7 @@ function init_start()
   field[i]={}
  end
  reset_pieces()
+ pk=dgetb(25,1)
  sfx(0)
  tm=0
  gd=true
@@ -137,6 +139,11 @@ function update_menu()
    reset_pieces()
    init_game(false)
   elseif(cu==2)then
+   piece=load_pattern(0)
+   update_field()
+   cp=nil
+   pm=""
+   init_game(false)
   end
  end
 end
@@ -170,7 +177,7 @@ function reset_pieces()
  piece={
   {t=1, r=0,x=7, y=2 },
   {t=2, r=0,x=13,y=2 },
-  {t=3, r=6,x=2, y=3 },
+  {t=3, r=4,x=2, y=3 },
   {t=4, r=4,x=2, y=13},
   {t=5, r=6,x=2 ,y=9 },
   {t=6, r=4,x=14,y=9 },
@@ -188,6 +195,8 @@ function update_game()
   cr=btn(4)
   if(cr)then
    rotate_piece(cp,vx,vy)
+   if(vx!=0)sfx(5) gp=true
+   if(vy!=0)sfx(6) gp=true
   else
    move_piece(cp,vx,vy)
   end
@@ -244,20 +253,20 @@ end
 
 function rotate_piece(p,vx,vy)
  local r=p.r
- if(vy!=0)then
-  r=bxor(r,2)
-  sfx(6)
-  gp=true
- end
+ if(vy!=0)r=bxor(r,2)
  if(vx!=0)then
   local b=0
   if(r>=4)b=1
   if(vx>0)b=1-b
   if(r%3==0 or r==5)b=1-b
   r=bxor(r,5+b)
-  sfx(5)
-  gp=true
  end
+ if(p.t==3)then
+  if(r<4 and r%2==1)r-=1
+  if(r>5) r-=2
+ end
+ if(p.t==8)r=r%4
+ if(p.t==9)r=0
  p.r=r
 end
 
@@ -270,8 +279,32 @@ function release_piece()
  end
  cm=false
  if(cq==10)then
+  completed()
+ else
+  sfx(3)
+ end
+end
+
+function completed()
+ local pe=encode_pattern()
+ if(is_new_pattern(pe))then
+  store_pattern(pk%25,pe)
+  pk+=1 if(pk>=50)pk-=25
+  dputb(25,1,pk)
+  if(pk<26)then
+   pm="you found new pattern!"
+  else
+   pm="so many patterns were "
+     .."found!!"
+  end
   sfx(8)
  else
+  pm="but you found this "
+  if(pk<26)then
+   pm=pm.."already"
+  else
+   pm=pm.."recently"
+  end
   sfx(3)
  end
 end
@@ -355,7 +388,6 @@ function draw_game()
  draw_strings()
  draw_instruction()
  if(not cm)draw_cursor()
- --draw_debug()
 end
 
 function draw_field(z)
@@ -381,19 +413,22 @@ end
 function draw_strings()
  if(not cm and cq==10)then
   print("completed",46,12,7)
+  print(pm,64-#pm*2,103,7)
  end
 end
 
 function draw_instruction()
- local sd,s1,s2=
-   "move","mode","release"
+ local sd,s1,s2
  if(gm==4)then
-  s1,s2="back","decide"
+  sd,s1,s2=
+    "choose","back","decide"
  elseif(not cm)then
-  s1,s2="menu",""
+  sd,s1,s2="cursor","menu",""
   if(cp!=nil)s2="pick"
- elseif(cr)then
-  sd="rotate/flip"
+ else
+  sd,s1,s2=
+    "move","mode","release"
+  if(cr)sd="rotate/flip"
  end
  rectfill(0,120,127,127,0)
  spr(112,0,120)
@@ -408,17 +443,100 @@ function draw_cursor()
  spr(116,cx*8-1,cy*8-5)
 end
 
-function draw_debug()
- --local i,j
- --for i=1,15 do
- -- for j=1,15 do
- --  if(field[i][j]!=nil)then
- --   pset(j*8,i*8-4,7)
- --  end
- -- end
- --end
- pset(tm%128,0,tm%7)
- print(cq,6,6,6)
+-- pattern management
+
+function encode_pattern()
+ local pe={}
+ local pz=clone_pieces()
+ local u=pz[1].r
+ rotate_pattern(pz,0)
+ local i,x,y,r
+ for i=1,10 do
+  x=flr((pz[i].x-4)/2)
+  y=flr((pz[i].y-4)/2)
+  r=pz[i].r if(i==1)r=u
+  pe[i]=r*32+y*5+x
+ end
+ return pe
+end
+
+function clone_pieces()
+ local p,pz
+ pz={}
+ for p in all(piece) do
+  pz[p.t]=
+    {x=p.x,y=p.y,t=p.t,r=p.r}
+ end
+ return pz
+end
+
+function rotate_pattern(pz,r)
+ local v,z
+ while(pz[1].r!=r)do
+  v,z=0,bxor(pz[1].r,r)
+  if(z%3==0 or z==5)v=1
+  for p in all(pz) do
+   rotate_piece(p,v,1-v)
+   if(v==0)then
+    p.y=16-p.y
+   else
+    p.x,p.y=16-p.y,p.x
+   end
+  end
+ end
+end
+
+function is_new_pattern(pe)
+ local i,n,q,z
+ local c=min(pk,24)
+ for n=0,c do
+  z=0
+  for i=1,10 do
+   q=bxor(dgetb(n,i),pe[i])
+   if(i==1)q=q%32
+   z+=q
+  end
+  if(z==0)return false
+ end
+ return true
+end
+
+
+function store_pattern(n,pe)
+ local i
+ for i=1,10 do
+  dputb(n,i,pe[i])
+ end
+end
+
+function load_pattern(n)
+ local pz={}
+ local i,z,x,y,r,u
+ for i=1,10 do
+  z=dgetb(n,i)
+  r,z=flr(z/32),z%32
+  x,y=z%5*2+4,flr(z/5)%5*2+4
+  if(i>3 and i<9)x+=1 y+=1
+  if(i<3)then
+   if(r<4)then
+    x+=1
+   else
+    y+=1
+   end
+  end
+  if(i==1)u=r r=0
+  pz[i]={x=x,y=y,t=i,r=r}
+ end
+ rotate_pattern(pz,u)
+ return pz
+end
+
+function dgetb(n,t)
+ return peek(0x5dff+n*10+t)
+end
+
+function dputb(n,t,z)
+ poke(0x5dff+n*10+t,z)
 end
 
 -- pico-8 special functions
