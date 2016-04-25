@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 7
 __lua__
 
--- chie no magari ita v0.25
+-- chie no magari ita v0.30
 
 --copyright (c) 2016 obono
 --released under the mit license
@@ -28,7 +28,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p03 ver 0.25",
+ print("obn-p03 ver 0.30",
    32,82,6)
 end
 
@@ -62,11 +62,11 @@ end
 function init_start()
  gm=3
  gc=52
- wall={t=0}
- field={}
+ fw={t=0}
+ fd={}
  local i
  for i=1,15 do
-  field[i]={}
+  fd[i]={}
  end
  cx,cy=8,8
  cm,cr=false,false
@@ -95,7 +95,7 @@ function draw_start()
   clip_field(gc*4)
   draw_field(1)
   s=(16-gc)/16
-  for p in all(piece) do
+  for p in all(ps) do
    x,y=p.x,p.y
    p.x,p.y=(x-8)*s+8,(y-8)*s+8
    draw_piece(p)
@@ -155,7 +155,7 @@ function draw_menu()
  if(gp)then
   cls()
   draw_field(1)
-  draw_pieces(piece)
+  draw_pieces(ps)
  end
  rectfill(32,44,95,75,0)
  rect(32,44,95,75,5)
@@ -197,7 +197,7 @@ function update_gallery()
   init_menu(false)
  elseif(btnp(5))then
   sfx(3)
-  piece=pg
+  ps=pg
   update_field()
   cp=point_piece()
   pm,pp="",false
@@ -233,7 +233,7 @@ function init_game(z)
 end
 
 function reset_pieces()
- piece={
+ ps={
   {t=1, r=0,x=7, y=2 },
   {t=2, r=0,x=13,y=2 },
   {t=3, r=4,x=2, y=3 },
@@ -292,8 +292,8 @@ function move_cursor(vx,vy)
  if(f!=cp)then
   cp=f
   if(f!=nil)then
-   del(piece,cp)
-   add(piece,cp)
+   del(ps,cp)
+   add(ps,cp)
    update_field()
   end
  end
@@ -301,7 +301,7 @@ function move_cursor(vx,vy)
 end
 
 function point_piece()
- local f=field[cy][cx]
+ local f=fd[cy][cx]
  if(f==nil or f.t==0)return nil
  return f
 end
@@ -338,9 +338,9 @@ end
 function release_piece()
  update_field()
  cx,cy=cp.x,cp.y
- if(field[cy][cx]!=cp)then
+ if(fd[cy][cx]!=cp)then
   cy-=1
-  if(field[cy][cx]!=cp)cy+=2
+  if(fd[cy][cx]!=cp)cy+=2
  end
  cm=false
  if(cq==10)then
@@ -357,10 +357,10 @@ function completed()
   pk+=1 if(pk>=50)pk-=25
   dputb(25,1,pk)
   if(pk<26)then
-   pm="you found new pattern!"
+   pm="a new pattern was found!"
   else
-   pm="so many patterns were "
-     .."found!!"
+   pm="you found so many "..
+     "patterns!"
   end
   pp=true
   sfx(8)
@@ -380,7 +380,7 @@ function update_field()
  reset_field()
  cq=0
  local p
- for p in all(piece) do
+ for p in all(ps) do
   if(put_piece(p))cq+=1
  end
 end
@@ -392,9 +392,9 @@ function reset_field()
    f=nil
    if(i<4 or i>12 or j<4 or j>12
      or(i%2==1 and j%2==1))then
-    f=wall
+    f=fw
    end
-   field[i][j]=f
+   fd[i][j]=f
   end
  end
 end
@@ -412,9 +412,9 @@ function put_piece(p)
     if(x>0 and x<16)then
      m=mget(sx+j,sy+i)
      if(m>4)then
-      f=field[y][x]
+      f=fd[y][x]
       if(f!=nil)z=false
-      field[y][x]=p
+      fd[y][x]=p
      end
     end
    end
@@ -446,7 +446,7 @@ function draw_game()
  if(gp)then
   cls()
   draw_field(1)
-  draw_pieces(piece)
+  draw_pieces(ps)
   gp=false
  else
   if(cp!=nil)draw_piece(cp)
@@ -516,7 +516,7 @@ function draw_cursor()
 end
 
 function draw_message()
- local c=6
+ local c=7
  if(pp)c=10+flr(tm/4)%2*5
  print("completed",46,12,c)
  print(pm,64-#pm*2,103,c)
@@ -543,7 +543,7 @@ end
 function clone_pieces()
  local p,pz
  pz={}
- for p in all(piece) do
+ for p in all(ps) do
   pz[p.t]=
     {x=p.x,y=p.y,t=p.t,r=p.r}
  end
@@ -882,7 +882,7 @@ __sfx__
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
-03 0a424344
+00 41424344
 00 41424344
 00 41424344
 00 41424344
