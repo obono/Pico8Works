@@ -1,8 +1,8 @@
 pico-8 cartridge // http://www.pico-8.com
-version 5
+version 7
 __lua__
 
--- chie no magari ita v0.24
+-- chie no magari ita v0.25
 
 --copyright (c) 2016 obono
 --released under the mit license
@@ -28,7 +28,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p03 ver 0.24",
+ print("obn-p03 ver 0.25",
    32,82,6)
 end
 
@@ -48,6 +48,8 @@ end
 function draw_title()
  cls()
  draw_stamp(36,16)
+ print("- chie no magari ita -",
+   20,41,2)
  print("press any button",
    32,88,7)
  print("2016.04 "..
@@ -66,10 +68,12 @@ function init_start()
  for i=1,15 do
   field[i]={}
  end
- reset_pieces()
+ cx,cy=8,8
+ cm,cr=false,false
  pk=dgetb(25,1)
- sfx(0)
  tm=0
+ reset_pieces()
+ sfx(0)
  gd=true
 end
 
@@ -113,19 +117,21 @@ end
 
 -- menu
 
-function init_menu()
+function init_menu(z)
  gm=4
- cu=0
- sfx(2)
+ if(z)cu=0
  gd=true
+ gp=true
 end
 
 function update_menu()
  local vx,vy=handle_dpad()
  if(vy!=0)then
-  cu=(cu+vy)%3
-  sfx(4)
-  gd=true
+  if(cu+vy>=0 and cu+vy<=2)then
+   cu+=vy
+   sfx(4)
+   gd=true
+  end
  end
  if(btnp(4))then
   sfx(3)
@@ -134,46 +140,99 @@ function update_menu()
   if(cu==0)then
    sfx(3)
    init_game(false)
-  elseif(cu==1)then
+  elseif(cu==1 and pk>0)then
+   sfx(2)
+   init_gallery()
+  elseif(cu==2)then
    sfx(7)
    reset_pieces()
-   init_game(false)
-  elseif(cu==2)then
-   piece=load_pattern(0)
-   update_field()
-   cp=nil
-   pm=""
    init_game(false)
   end
  end
 end
 
 function draw_menu()
+ if(gp)then
+  cls()
+  draw_field(1)
+  draw_pieces(piece)
+ end
  rectfill(32,44,95,75,0)
  rect(32,44,95,75,5)
- local s={"continue","reset",
-   "gallery"}
+ local s={"continue","gallery",
+   "reset"}
  local i,c
  for i=0,2 do
   c=5 if(i==cu)c=7
+  if(i==1 and pk==0)c=1
   print(s[i+1],48,49+i*8,c)
  end
  print(">",40,49+cu*8,7)
  draw_instruction()
 end
 
+-- gallery
+
+function init_gallery()
+ gm=5
+ pn=(pk-1)%25
+ pg=load_pattern(pn)
+ gd=true
+end
+
+function update_gallery()
+ local vx,vy=handle_dpad()
+ local n,c=pn,pk
+ if(pk>25)n,c=(n-pk)%25,25
+ if(vx!=0)then
+  if(n+vx>=0 and n+vx<c)then
+   pn=(pn+vx)%25
+   pg=load_pattern(pn)
+   sfx(5)
+   gd=true
+  end
+ end
+ if(btnp(4))then
+  sfx(3)
+  init_menu(false)
+ elseif(btnp(5))then
+  sfx(3)
+  piece=pg
+  update_field()
+  cp=point_piece()
+  pm,pp="",false
+  init_game(false)
+ end
+end
+
+function draw_gallery()
+ cls()
+ rect(27,23,100,96,5)
+ draw_pieces(pg)
+ local n,c=pn,fnum(pk)
+ if(pk>25)then
+  n,c=(pn-pk)%25,"25+"
+ end
+ print("pattern "..fnum(n+1)..
+   "/"..c, 38,12,7)
+ draw_instruction()
+end
+
+function fnum(n)
+ if(n<10)return "0"..n
+ return n
+end
+
 -- game
 
 function init_game(z)
- gm=5
+ gm=6
  gd=true
  gp=true
  if(z)music(0,0,3)
 end
 
 function reset_pieces()
- cm=false cr=false
- cx,cy=8,8 cp=nil
  piece={
   {t=1, r=0,x=7, y=2 },
   {t=2, r=0,x=13,y=2 },
@@ -187,6 +246,7 @@ function reset_pieces()
   {t=10,r=5,x=10,y=14},
  }
  update_field()
+ cp=point_piece()
 end
 
 function update_game()
@@ -206,7 +266,8 @@ function update_game()
   if(btnp(5) and cp!=nil)then
    cm=true gp=true sfx(2)
   elseif(btnp(4))then
-   init_menu()
+   sfx(2)
+   init_menu(true)
   end
  end
  tm+=1
@@ -227,18 +288,22 @@ function move_cursor(vx,vy)
  if(cy+vy<1 or cy+vy>15)vy=0
  if(vx==0 and vy==0)return
  cx+=vx cy+=vy
- local f=field[cy][cx]
+ local f=point_piece()
  if(f!=cp)then
-  if(f!=nil and f.t>0)then
-   cp=f
+  cp=f
+  if(f!=nil)then
    del(piece,cp)
    add(piece,cp)
    update_field()
-  else
-   cp=nil
   end
  end
  gp=true
+end
+
+function point_piece()
+ local f=field[cy][cx]
+ if(f==nil or f.t==0)return nil
+ return f
 end
 
 function move_piece(p,vx,vy)
@@ -297,6 +362,7 @@ function completed()
    pm="so many patterns were "
      .."found!!"
   end
+  pp=true
   sfx(8)
  else
   pm="but you found this "
@@ -305,6 +371,7 @@ function completed()
   else
    pm=pm.."recently"
   end
+  pp=false
   sfx(3)
  end
 end
@@ -312,6 +379,7 @@ end
 function update_field()
  reset_field()
  cq=0
+ local p
  for p in all(piece) do
   if(put_piece(p))cq+=1
  end
@@ -378,21 +446,28 @@ function draw_game()
  if(gp)then
   cls()
   draw_field(1)
-  for p in all(piece) do
-   draw_piece(p)
-  end
+  draw_pieces(piece)
   gp=false
  else
   if(cp!=nil)draw_piece(cp)
  end
- draw_strings()
  draw_instruction()
- if(not cm)draw_cursor()
+ if(not cm)then
+  draw_cursor()
+  if(cq==10)draw_message()
+ end
 end
 
 function draw_field(z)
  map(80,0,-4,0,17,15)
  map(97,z*8,36,32,7,7)
+end
+
+function draw_pieces(pz)
+ local p
+ for p in all(pz) do
+  draw_piece(p)
+ end
 end
 
 function draw_piece(p)
@@ -410,18 +485,15 @@ function draw_piece(p)
  pal()
 end
 
-function draw_strings()
- if(not cm and cq==10)then
-  print("completed",46,12,7)
-  print(pm,64-#pm*2,103,7)
- end
-end
-
 function draw_instruction()
  local sd,s1,s2
  if(gm==4)then
   sd,s1,s2=
     "choose","back","decide"
+  if(pk==0 and cu==1)s2=""
+ elseif(gm==5)then
+  sd,s1,s2="","back","resume"
+  if(pk>1)sd="prev/next"
  elseif(not cm)then
   sd,s1,s2="cursor","menu",""
   if(cp!=nil)s2="pick"
@@ -442,6 +514,14 @@ end
 function draw_cursor()
  spr(116,cx*8-1,cy*8-5)
 end
+
+function draw_message()
+ local c=6
+ if(pp)c=10+flr(tm/4)%2*5
+ print("completed",46,12,c)
+ print(pm,64-#pm*2,103,c)
+end
+
 
 -- pattern management
 
@@ -471,7 +551,7 @@ function clone_pieces()
 end
 
 function rotate_pattern(pz,r)
- local v,z
+ local v,z,p
  while(pz[1].r!=r)do
   v,z=0,bxor(pz[1].r,r)
   if(z%3==0 or z==5)v=1
@@ -550,6 +630,7 @@ update_fn={
  update_title,
  update_start,
  update_menu,
+ update_gallery,
  update_game
 }
 
@@ -562,6 +643,7 @@ draw_fn={
  draw_title,
  draw_start,
  draw_menu,
+ draw_gallery,
  draw_game
 }
 
