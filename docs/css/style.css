@@ -1,0 +1,70 @@
+﻿body {
+	background-color: #333;
+	color: #ddd;
+}
+
+a {
+	color: #aaf;
+}
+
+a:visited {
+	color: #f8f;
+}
+
+a:hover {
+	background-color: #666;
+}
+
+h1 {
+	color: #fff;
+}
+
+div.main {
+	width: 800px;
+	margin: auto;
+}
+
+div.game {
+	width: 580px;
+	float: left;
+}
+
+div.inst {
+	width: 212px;
+	margin-left: 8px;
+	float: left;
+	text-align: left;
+}
+
+canvas#canvas {
+	width: 580px;
+	height: 540px;
+}
+
+.pico8_el {
+	float: left;
+	width: 106px;
+	display: inline-block; 
+	margin: 1px;
+	padding: 4px;
+	text-align: center;
+	color: #fff;
+	background-color: #777;
+	font-family: verdana;
+	font-size: 9pt;
+	cursor: pointer;
+	cursor: hand;
+}
+
+.pico8_el a{
+	text-decoration: none;
+	color: #fff;
+}
+
+.pico8_el:hover{
+	background-color: #aaa;
+}
+
+.pico8_el:link{
+	background-color: #aaa;
+}
