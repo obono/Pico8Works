@@ -1,22 +1,43 @@
-﻿body {
+﻿@font-face {
+	font-family: 'pico-8';
+	src: url('./pico-8.woff') format('woff');
+}
+
+body {
 	background-color: #333;
-	color: #ddd;
+	color: #c2c3c7;
+	font-size: 0.5em;
+	font-family: pico-8;
+	line-height: 1.5;
 }
 
 a {
-	color: #aaf;
+	color: #29adff;
 }
 
 a:visited {
-	color: #f8f;
+	color: #83769c;
 }
 
 a:hover {
-	background-color: #666;
+	background-color: #5f574f;
 }
 
 h1 {
 	color: #fff;
+	font-weight: normal;
+}
+
+li {
+	margin-bottom: 0.5em;
+}
+
+dt {
+	color: #ffccaa;
+}
+
+dd {
+	margin-left: 2em;
 }
 
 div.main {
@@ -33,7 +54,17 @@ div.inst {
 	width: 212px;
 	margin-left: 8px;
 	float: left;
-	text-align: left;
+}
+
+div.github {
+	text-align: right;
+}
+
+div.github a {
+	color: #ff77a8;
+	padding: 3px;
+	border: solid 3px #ff77a8;
+	text-decoration: none;
 }
 
 canvas#canvas {
