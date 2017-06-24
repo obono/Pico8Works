@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 
--- ishido v0.10
+-- ishido v0.11
 
 --copyright (c) 2017 obono
 --released under the mit license
@@ -28,7 +28,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p04 ver 0.10",
+ print("obn-p04 ver 0.11",
    32,82,6)
 end
 
@@ -43,7 +43,7 @@ function update_title()
  if(btnp(4) or btnp(5))then
   --init_start()
   sfx(0)
-  init_game()
+  init_game(true)
  end
 end
 
@@ -88,6 +88,7 @@ function init_game(z)
  ge=check_field(7)
  pt,pf=0,0
  cx,cy=6,4
+ if(z)rt=32
  ds=0
 end
 
@@ -194,34 +195,45 @@ pq={10,20,60,250}
 pb={1000,5000,10000}
 
 function update_game()
- if(btnp(4))then
-  init_game()
+ if(btn(4) and rt==0)rt=1
+ if(rt>0)then
+  if(btn(4))then
+   if(rt<32)rt+=1
+   if(rt==31)init_game(false)
+  else
+   rt=0
+  end
+  gd=true
   return
  end
+ 
  local vx,vy=handle_dpad()
- if(vx!=0) cx=(cx+vx+12)%12
- if(vy!=0) cy=(cy+vy+8)%8
- if(btnp(5))then
-  local n=mget(cx,cy+8)
-  if(n>0)then
-   local t,c=get_stone(cx,cy)
-   place_stone(cx,cy,sn)
-   if(c==0)pt+=pq[n]
-   if(n==4)pt+=pf*50 pf+=1
-   ge=check_field(si+1)
-   if(ge)then
-    sfx(n+1)
-   else
-    if(si==73)then
-     sfx(6)
+ if(ge)then
+  if(vx!=0) cx=(cx+vx+12)%12
+  if(vy!=0) cy=(cy+vy+8)%8
+  if(btnp(5))then
+   local n=mget(cx,cy+8)
+   if(n>0)then
+    local t,c=get_stone(cx,cy)
+    place_stone(cx,cy,sn)
+    if(c==0)pt+=pq[n]
+    if(n==4)pt+=pf*50 pf+=1
+    ge=check_field(si+1)
+    if(ge)then
+     sfx(n+1)
     else
-     sfx(1)
+     if(si==73)then
+      sfx(6)
+     else
+      sfx(1)
+     end
+     if(si>70)pt+=pb[si-70]
     end
-    if(si>70)pt+=pb[si-70]
+    ds=n*4
    end
-   ds=n*4
   end
  end
+
  if(ds>0)then
   ds-=1 gd=true
  else
@@ -288,9 +300,14 @@ function draw_status()
 end
 
 function draw_guide()
- print(" retry",0,120,13)
+ local c=13
+ if(rt>0 and rt<=30)then
+  c=10
+  line(rt,118,30,118,c)
+ end
+ print(" retry",0,120,c)
  if(ge)then
-  print("— place",36,120)
+  print("— place",36,120,13)
  end 
 end
 
