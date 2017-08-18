@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 
--- ishido v0.12
+-- ishido v0.20
 
 --copyright (c) 2017 obono
 --released under the mit license
@@ -29,7 +29,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p04 ver 0.12",
+ print("obn-p04 ver 0.20",
    32,82,6)
 end
 
@@ -57,7 +57,7 @@ function draw_title()
    "stones",12,66,6)
  print("press any button",
    32,88,7)
- print("2017.07 "..
+ print("2017.08 "..
    "programmed by obono",
    10,112,5)
 end
@@ -95,6 +95,9 @@ function init_game(z)
  cx,cy=6,4
  rt=32
  ds=0
+ hc=nil
+ pa={}
+ sq=0
 end
 
 function shuffle_stones()
@@ -111,7 +114,7 @@ function shuffle_stones()
   z=rndi(72)+1
   sa[i],sa[z]=sa[z],sa[i]
  end
- add(sa,{t=7,c=6})
+ add(sa,{t=7,c=0})
 end
 
 function adjust_stones()
@@ -138,9 +141,9 @@ function init_board()
  local i,j,c
  for i=0,7 do
   for j=0,11 do
-   c=6
-   if(j==0 or j==11)c=7
-   if(i==0 or i==7) c=7
+   c=0
+   if(j==0 or j==11)c=1
+   if(i==0 or i==7) c=1
    place_stone(j,i,{t=7,c=c})
   end
  end
@@ -150,12 +153,13 @@ function init_board()
 end
 
 function place_stone(x,y,s)
- local i,j,p
+ local i,j,c,z
+ c=s.c if(s.t>6)c+=6
  for i=0,9 do
   for j=0,9 do
-   p=sget(s.t*10+j,i)
-   if(p<7)p=sget(s.c,p+3)
-   sset(x*10+j+4,y*10+i+48,p)
+   z=sget(c,sget(s.t*10+j,i)+3)
+   local dx,dy=coord(x,y)
+   sset(dx+j,dy+i+40,z)
   end
  end
  mset(x,y,s.t*6+s.c)
@@ -163,7 +167,7 @@ end
 
 function check_field(i)
  si,sn=i,sa[i]
- if(si==73)return false
+ hx,hy=114,100
  local x,y,n
  local r=false
  for y=0,7 do
@@ -177,6 +181,7 @@ function check_field(i)
 end
 
 function can_place(x,y,s)
+ if(s.t==7)return 0
  local t,c=get_stone(x,y)
  if(t<7)return 0
  local i
@@ -202,49 +207,27 @@ pb={100,500,1000}
 
 function update_game()
  check_mouse()
- if(is_retry_op() and rt==0)rt=1
- if(rt>0)then
-  if(is_retry_op())then
-   if(rt<32)rt+=1
-   if(rt==31)then
-    sfx(7)
-    init_game(false)
-   end
-  else
-   rt=0
-  end
-  gd=true
+ move_particles()
+ if(sq>0)sq-=1 gd=true
+ if(hc!=nil)then
+  coresume(hc)
   return
  end
-
+ if(ds>0)ds-=1 gd=true
+ if(process_retry())return
  if(ge)then
   move_cursor()
-  if(is_place_op())then
-   local n=mget(cx,cy+8)
-   if(n>0)then
-    local t,c=get_stone(cx,cy)
-    place_stone(cx,cy,sn)
-    if(c==0)pt+=shl(1,n+pf-1)
-    if(n==4)pf+=1 pt+=pq[pf]
-    ge=check_field(si+1)
-    if(ge)then
-     sfx(n+1)
-    else
-     if(si==73)then
-      sfx(6)
-     else
-      sfx(1)
-     end
-     if(si>70)pt+=pb[si-70]
-    end
-    ds=n*4
-   end
-  end
+  process_place()
  end
+end
 
- if(ds>0)then
-  ds-=1 gd=true
- end
+function handle_dpad()
+ local vx,vy=0,0
+ if(btnp(0))vx-=1
+ if(btnp(1))vx+=1
+ if(btnp(2))vy-=1
+ if(btnp(3))vy+=1
+ return vx,vy
 end
 
 function is_retry_op()
@@ -256,6 +239,33 @@ function is_place_op()
  return (mx>=4 and mx<124 and
    my>=8 and my<88 and
    band(mb,1)>0) or btn(5)
+end
+
+function move_particles()
+ for p in all(pa) do
+  p.x+=p.v p.y+=p.w
+  p.v*=3/4 p.w*=3/4
+  if(abs(p.v)<1/8 or
+    abs(p.w)<1/8)then del(pa,p)
+  end
+  gd=true
+ end
+end
+
+function process_retry()
+ if(rt==0 and is_retry_op())rt=1
+ if(rt==0)return false
+ if(is_retry_op())then
+  if(rt<32)rt+=1
+  if(rt==31)then
+   sfx(7)
+   init_game(false)
+  end
+ else
+  rt=0
+ end
+ gd=true
+ return true
 end
 
 function move_cursor()
@@ -277,13 +287,76 @@ function move_cursor()
  end
 end
 
-function handle_dpad()
- local vx,vy=0,0
- if(btnp(0))vx-=1
- if(btnp(1))vx+=1
- if(btnp(2))vy-=1
- if(btnp(3))vy+=1
- return vx,vy
+function process_place()
+ if(not is_place_op())return
+ local n=mget(cx,cy+8)
+ if(n>0)then
+  hc=cocreate(animate_place)
+  coresume(hc,cx,cy,n)
+ end
+end
+
+function animate_place(x,y,n)
+ local i,t1,t2
+ local tx,ty=coord(x,y)
+ for i=1,8 do
+  t1=i*i/64 t2=1-t1
+  hx=tx*t1+114*t2
+  hy=ty*t1+100*t2
+  gd=true
+  yield()
+ end
+ local _,c=get_stone(x,y)
+ place_stone(x,y,sn)
+ add_spark(x,y,0,-1,sn,n)
+ add_spark(x,y,0,1,sn,n)
+ add_spark(x,y,-1,0,sn,n)
+ add_spark(x,y,1,0,sn,n)
+ if(c==0)pt+=shl(1,n+pf-1)
+ if(n==4)then
+  pf+=1 pt+=pq[pf]
+  add_shine(x,y)
+ end
+ ge=check_field(si+1)
+ if(ge)then
+  sfx(n+1)
+ else
+  if(si==73)then
+   sfx(6)
+  else
+   sfx(1)
+  end
+  if(si>70)pt+=pb[si-70]
+ end
+ ds=n*4
+ gd=true
+ hc=nil
+end
+
+function add_spark(x,y,v,w,s,n)
+ local t,c=get_stone(x+v,y+w)
+ if(t>6)return
+ local i,z
+ for i=1,64 do
+  z=c if(rnd()<.5)z=s.c
+  local px,py=coord(x,y)
+  if(v==0)then
+   px+=rnd(10)
+   if(w>0)py+=9
+  else
+   if(v>0)px+=9
+   py+=rnd(10)
+  end
+  local d,r=rnd(),rnd(n*2+2)
+  add(pa,{x=px,y=py,
+    v=v*2+cos(d)*r,
+    w=w*2+sin(d)*r,
+    c=sget(z,8.5+rnd(2))})
+ end
+end
+
+function add_shine(x,y)
+ sx,sy,sq=x,y,5
 end
 
 function get_stone(x,y)
@@ -297,27 +370,42 @@ function draw_game()
  cls()
  shake_camera(ds)
  draw_board()
- if(ge)draw_cursor()
+ draw_particles()
+ if(sq>0)draw_shine()
+ if(ge and hc==nil)draw_cursor()
  camera(0,0)
  draw_status()
- draw_stone(114,100,sn)
+ draw_stone(hx,hy,sn)
  draw_guide()
 end
 
-function shake_camera(d)
- local vx=rndi(d)
- local vy=d-vx
- if(rnd()<.5)vx=-vx
- if(rnd()<.5)vy=-vy
- camera(vx,vy)
+function shake_camera(r)
+ local d=rnd()
+ camera(cos(d)*r,sin(d)*r)
 end
 
 function draw_board()
  spr(96,0,8,16,10)
 end
 
+function draw_particles()
+ for p in all(pa) do
+   line(p.x,p.y,p.x-p.v,p.y-p.w,p.c)
+ end
+end
+
+function draw_shine()
+ local x,y=coord(sx,sy)
+ local z=75/sq
+ rectfill(x+5-sq,y+5-z,
+   x+4+sq,y+4+z,7)
+ rectfill(x+5-z,y+5-sq,
+   x+4+z,y+4+sq,7)
+end
+
 function draw_cursor()
- spr(84,cx*10+8,cy*10+12)
+ local dx,dy=coord(cx,cy)
+ spr(84,dx+4,dy+4)
 end
 
 function draw_status()
@@ -349,11 +437,16 @@ end
 
 
 function draw_stone(x,y,s)
- pal(5,sget(s.c,8))
- pal(6,sget(s.c,9))
+ local c=s.c if(s.t>6)c+=6
+ pal(5,sget(c,8))
+ pal(6,sget(c,9))
  sspr(s.t*10,0,10,10,x,y)
  pal(5,5)
  pal(6,6)
+end
+
+function coord(x,y)
+ return x*10+4,y*10+8
 end
 
 -- utils
@@ -415,7 +508,7 @@ __gfx__
 00000000007665665665766655666576556655657656666565766556656576666565655656565656000000000000000000000000766656666666666666676665
 59342101007666666665766666666576666666657666666665766666666576666666655565656566000000000000000000000000766656666666666666676665
 6abfec5d005555555555555555555555555555555555555555555555555555555555556666666666000000000000000000000000766656666666666666676665
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000766656666666666666676665
+77777766000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000766656666666666666676665
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000766656666666666666676665
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000766656666666666666676665
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000766656666666666666676665
