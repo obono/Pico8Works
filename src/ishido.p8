@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 
--- ishido v0.21
+-- ishido v0.22
 
 --copyright (c) 2017 obono
 --released under the mit license
@@ -12,7 +12,7 @@ __lua__
 
 function init_logo()
  cartdata("obono_ishido")
- poke(0x5f2d,1)
+ poke(0x5f2d,1) -- enable mouse
  gm=1
  gc=60 -- wait 2s
  gd=true
@@ -29,7 +29,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p04 ver 0.21",
+ print("obn-p04 ver 0.22",
    32,82,6)
 end
 
@@ -57,7 +57,7 @@ function draw_title()
    "stones",12,66,6)
  print("press any button",
    32,88,7)
- print("2017.08 "..
+ print("2017.09 "..
    "programmed by obono",
    10,112,5)
 end
@@ -90,8 +90,8 @@ function init_game(z)
  shuffle_stones()
  adjust_stones()
  init_board()
- ge=check_field(7)
- pt,pf=0,0
+ ge=eval_field(7)
+ pt,pf,pk,ph=0,0,0,0
  cx,cy=6,4
  rt=32
  ds=0
@@ -107,7 +107,7 @@ function shuffle_stones()
  for i=1,2 do
   for t=1,6 do
    for c=0,5 do
-    add(sa,{t=t,c=c})
+    add(sa,{x=0,y=0,t=t,c=c})
    end
   end
  end
@@ -166,7 +166,7 @@ function place_stone(x,y,s)
  mset(x,y,s.t*6+s.c)
 end
 
-function check_field(i)
+function eval_field(i)
  si,sn=i,sa[i]
  hx,hy=114,100
  local x,y,n
@@ -181,6 +181,10 @@ function check_field(i)
  return r
 end
 
+function eval_pos(x,y)
+ return mget(x,y+8)
+end
+
 function can_place(x,y,s)
  if(s.t==7)return 0
  local t,c=get_stone(x,y)
@@ -188,8 +192,8 @@ function can_place(x,y,s)
  local i
  local ns,na,nt,nc=0,0,1,1
  for i=1,7,2 do
-  local vx,vy=i%3-1,flr(i/3)-1
-  t,c=get_stone(x+vx,y+vy)
+  local v,w=i%3-1,flr(i/3)-1
+  t,c=get_stone(x+v,y+w)
   if(t<7)then
    ns+=1
    local et,ec=(s.t==t),(s.c==c)
@@ -210,12 +214,15 @@ function update_game()
  tune_music()
  check_mouse()
  move_particles()
+ if(ph>0)ph-=1 gd=true
+ if(ds>0)ds-=1 gd=true
  if(sq>0)sq-=1 gd=true
  if(hc!=nil)then
-  coresume(hc)
+  if(not coresume(hc))then
+   reach_stone()
+  end
   return
  end
- if(ds>0)ds-=1 gd=true
  if(process_retry())return
  if(ge)then
   move_cursor()
@@ -247,8 +254,8 @@ function move_particles()
  for p in all(pa) do
   p.x+=p.v p.y+=p.w
   p.v*=3/4 p.w*=3/4
-  if(abs(p.v)<1/8 or
-    abs(p.w)<1/8)then del(pa,p)
+  if(p.v*p.v+p.w*p.w<1/64)then
+   del(pa,p)
   end
   gd=true
  end
@@ -291,35 +298,38 @@ end
 
 function process_place()
  if(not is_place_op())return
- local n=mget(cx,cy+8)
- if(n>0)then
-  hc=cocreate(animate_place)
-  coresume(hc,cx,cy,n)
+ if(eval_pos(cx,cy)>0)then
+  hc=cocreate(move_stone)
+  coresume(hc)
  end
 end
 
-function animate_place(x,y,n)
+function move_stone()
  local i,t1,t2
- local tx,ty=coord(x,y)
- for i=1,8 do
+ local tx,ty=coord(cx,cy)
+ for i=1,7 do
   t1=i*i/64 t2=1-t1
   hx=tx*t1+114*t2
   hy=ty*t1+100*t2
   gd=true
   yield()
  end
- local _,c=get_stone(x,y)
- place_stone(x,y,sn)
- add_spark(x,y,0,-1,sn,n)
- add_spark(x,y,0,1,sn,n)
- add_spark(x,y,-1,0,sn,n)
- add_spark(x,y,1,0,sn,n)
- if(c==0)pt+=shl(1,n+pf-1)
+ hx,hy=114,100
+end
+
+function reach_stone()
+ local _,c=get_stone(cx,cy)
+ local n=eval_pos(cx,cy)
+ place_stone(cx,cy,sn)
+ sa[si].x,sa[si].y=cx,cy
+ add_sparks(cx,cy,sn,n)
+ pk,ph=0,0
+ if(c==0)pk=shl(1,pf+n-1)
  if(n==4)then
-  pf+=1 pt+=pq[pf]
-  add_shine(x,y)
+  pf+=1 pk+=pq[pf]
+  add_shine(cx,cy)
  end
- ge=check_field(si+1)
+ ge=eval_field(si+1)
  if(ge)then
   sfx(n+1)
  else
@@ -329,11 +339,25 @@ function animate_place(x,y,n)
   else
    sfx(1)
   end
-  if(si>70)pt+=pb[si-70]
+  if(si>70)pk+=pb[si-70]
  end
- ds=n*4
+ if(pk>0)pt+=pk ph=15
+ if(not ge)do
+  if(update_hiscore()==1)then
+   encode_stones()
+  end
+ end
+ ds=n*2+2
  gd=true
  hc=nil
+end
+
+function add_sparks(x,y,s,n)
+ local i
+ for i=1,7,2 do
+  local v,w=i%3-1,flr(i/3)-1
+  add_spark(x,y,v,w,s,n)
+ end
 end
 
 function add_spark(x,y,v,w,s,n)
@@ -359,7 +383,7 @@ function add_spark(x,y,v,w,s,n)
 end
 
 function add_shine(x,y)
- sx,sy,sq=x,y,5
+ sx,sy,sq=x,y,10
 end
 
 function get_stone(x,y)
@@ -390,6 +414,72 @@ function tune_music()
  end
 end
 
+function update_hiscore()
+ local i,p,f
+ for i=5,1,-1 do
+  p,f=get_hiscore(i)
+  if(p>pt)return i+1
+  if(i<5)set_hiscore(i+1,p,f)
+  set_hiscore(i,pt,pf)
+ end
+ return 1
+end
+
+function get_hiscore(n)
+ return
+   dgetb(n*3)+dgetb(n*3+1)*256,
+   dgetb(n*3+2)
+end
+
+function set_hiscore(n,p,f)
+ dsetb(n*3,p%256)
+ dsetb(n*3+1,shr(p,8))
+ dsetb(n*3+2,f)
+end
+
+
+function encode_stones()
+ local a=20
+ local i,z,b
+ for i=1,72,2 do
+  z=encode_stone(sa[i])
+  b=encode_stone(sa[i+1])
+  dsetb(a,z%256)
+  dsetb(a+1,flr(z/256)+b%16*16)
+  dsetb(a+2,flr(b/16))
+  a+=3
+ end
+end
+
+function encode_stone(s)
+ return s.x*288+s.y*36+
+   (s.t-1)*6+s.c
+end
+
+function decode_stones()
+ local a=20
+ local i,z,b
+ sa={}
+ for i=1,36 do
+  b=dgetb(a+1)
+  z=dgetb(a)+b%16*256
+  add(sa,decode_stone(z))
+  z=flr(b/16)+dgetb(a+2)*16
+  add(sa,decode_stone(z))
+  a+=3
+ end
+ add(sa,{t=7,c=0})
+end
+
+function decode_stone(z)
+ return {
+   x=flr(z/288),
+   y=flr(z/36)%8,
+   t=(flr(z/6)%6)+1,
+   c=z%6
+ }
+end
+
 function draw_game()
  cls()
  shake_camera(ds)
@@ -399,6 +489,7 @@ function draw_game()
  if(ge and hc==nil)draw_cursor()
  camera(0,0)
  draw_status()
+ draw_stone(114,100,{t=7,c=0})
  draw_stone(hx,hy,sn)
  draw_guide()
 end
@@ -414,17 +505,18 @@ end
 
 function draw_particles()
  for p in all(pa) do
-   line(p.x,p.y,p.x-p.v,p.y-p.w,p.c)
+   line(p.x,p.y,
+     p.x-p.v,p.y-p.w,p.c)
  end
 end
 
 function draw_shine()
  local x,y=coord(sx,sy)
- local z=75/sq
- rectfill(x+5-sq,y+5-z,
-   x+4+sq,y+4+z,7)
- rectfill(x+5-z,y+5-sq,
-   x+4+z,y+4+sq,7)
+ local v,w=sq/2,150/sq
+ rectfill(x+5-v,y+5-w,
+   x+4+v,y+4+w,7)
+ rectfill(x+5-w,y+5-v,
+   x+4+w,y+4+v,7)
 end
 
 function draw_cursor()
@@ -433,10 +525,16 @@ function draw_cursor()
 end
 
 function draw_status()
- print("score "..pt,8,104,7)
- print("4-way "..pf,60,104)
+ print("score",4,104,7)
+ print("4-way ",56,104)
  print("next",96,104)
- print("rest "..(73-si),96,112)
+ print("rest ",96,112)
+ draw_number(48,104,"",pt,7)
+ draw_number(88,104,"",pf,7)
+ draw_number(124,112,"",73-si,7)
+ if(ph>0)then
+  draw_number(48,110,"+",pk,9)
+ end
  if(not ge)then
   if(si==73)then
    print("completed!",44,92,10)
@@ -445,6 +543,11 @@ function draw_status()
      32,92,6)
   end
  end
+end
+
+function draw_number(x,y,g,n,c)
+ local z=g..n
+ print(z,x-#z*4,y,c)
 end
 
 function draw_guide()
@@ -485,12 +588,12 @@ function check_mouse()
  mx,my,mb=x,y,stat(34)
 end
 
-function dgetb(n,t)
- return peek(0x5dff+n*10+t)
+function dgetb(a)
+ return peek(0x5e00+a)
 end
 
-function dputb(n,t,z)
- poke(0x5dff+n*10+t,z)
+function dsetb(a,z)
+ poke(0x5e00+a,z)
 end
 
 -- pico-8 special functions
