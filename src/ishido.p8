@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 
--- ishido v0.22
+-- ishido v0.23
 
 --copyright (c) 2017 obono
 --released under the mit license
@@ -13,6 +13,7 @@ __lua__
 function init_logo()
  cartdata("obono_ishido")
  poke(0x5f2d,1) -- enable mouse
+ mb=0
  gm=1
  gc=60 -- wait 2s
  gd=true
@@ -29,7 +30,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p04 ver 0.22",
+ print("obn-p04 ver 0.23",
    32,82,6)
 end
 
@@ -37,16 +38,16 @@ end
 
 function init_title()
  gm=2
+ pp,_=get_hiscore()
+ decode_stones()
+ music(-1)
  gd=true
 end
 
 function update_title()
- check_mouse()
- if(btnp(4) or btnp(5) or
-   band(mb,1)>0)then
-  --init_start()
-  sfx(0,3)
-  init_game(true)
+ if(is_any_op())then
+  sfx(0)
+  init_menu_title()
  end
 end
 
@@ -62,43 +63,43 @@ function draw_title()
    10,112,5)
 end
 
--- starting
+-- instruction
 
-function init_start()
+function init_inst()
  gm=3
- gc=30
- sfx(0)
  gd=true
 end
 
-function update_start()
- gc-=1
- if(gc<=0)init_game(true)
- gd=true
+function update_inst()
+ if(is_any_op())then
+  sfx(9)
+  init_title()
+ end
 end
 
-function draw_start()
+function draw_inst()
  cls()
- print("starting "..gc,0,0,7)
+ print("instruction",0,0,7)
 end
 
 -- game
 
 function init_game(z)
  gm=4
- gd=true
- shuffle_stones()
- adjust_stones()
+ gr=z
+ if(not gr)then
+  shuffle_stones()
+  adjust_stones()
+ end
  init_board()
  ge=eval_field(7)
  pt,pf,pk,ph=0,0,0,0
- cx,cy=6,4
- rt=32
- ds=0
- hc=nil
+ cx,cy,ce=6,4,true
  pa={}
+ ds=0
  sq=0
- if(z)music(0,0,7)
+ hc=nil
+ gd=true
 end
 
 function shuffle_stones()
@@ -206,13 +207,8 @@ function can_place(x,y,s)
  return ns
 end
 
-pq={25,50,100,200,400,600,800,
-  1000,5000,10000}
-pb={100,500,1000}
-
 function update_game()
  tune_music()
- check_mouse()
  move_particles()
  if(ph>0)ph-=1 gd=true
  if(ds>0)ds-=1 gd=true
@@ -221,33 +217,31 @@ function update_game()
   if(not coresume(hc))then
    reach_stone()
   end
-  return
+ elseif(ge)then
+  if(gr)then
+   process_replay()
+  else
+   move_cursor()
+   process_place()
+  end
  end
- if(process_retry())return
- if(ge)then
-  move_cursor()
-  process_place()
+ if(is_menu_op())then
+  init_menu_game()
  end
 end
 
-function handle_dpad()
- local vx,vy=0,0
- if(btnp(0))vx-=1
- if(btnp(1))vx+=1
- if(btnp(2))vy-=1
- if(btnp(3))vy+=1
- return vx,vy
+function is_any_op()
+ return mb==1 or btnp(4)
+   or btnp(5)
 end
 
-function is_retry_op()
- return (mx<32 and my>=120 and
-   band(mb,1)>0) or btn(4)
+function is_menu_op()
+ return (not ce and mx<32 and
+   my>=120 and mb==1) or btnp(4)
 end
 
 function is_place_op()
- return (mx>=4 and mx<124 and
-   my>=8 and my<88 and
-   band(mb,1)>0) or btn(5)
+ return ce and(mb==1 or btnp(5))
 end
 
 function move_particles()
@@ -261,37 +255,25 @@ function move_particles()
  end
 end
 
-function process_retry()
- if(rt==0 and is_retry_op())rt=1
- if(rt==0)return false
- if(is_retry_op())then
-  if(rt<32)rt+=1
-  if(rt==31)then
-   sfx(7,3)
-   init_game(false)
-  end
- else
-  rt=0
- end
- gd=true
- return true
-end
-
 function move_cursor()
- local vx,vy=handle_dpad()
- if(vx!=0)then
-  gd=true cx=(cx+vx+12)%12
- end
- if(vy!=0)then
-  gd=true cy=(cy+vy+8)%8
+ local v,w=handle_dpad()
+ if(v!=0 or w!=0)then
+  if(ce)then
+   if(v!=0)cx=(cx+v+12)%12
+   if(w!=0)cy=(cy+w+8)%8
+  else
+   ce=true
+  end
+  gd=true
  end
  if(mm)then
   local x=flr((mx-4)/10)
   local y=flr((my-8)/10)
-  if(x>=0 and x<12 and y>=0 and
-    y<8 and(x!=cx or y!=cy))then
-   cx,cy=x,y
-   gd=true
+  local e=(x>=0 and x<12 and
+    y>=0 and y<8)
+  if(e!=ce)ce,gd=e,true
+  if(e and(x!=cx or y!=cy))then
+   cx,cy,gd=x,y,true
   end
  end
 end
@@ -304,18 +286,34 @@ function process_place()
  end
 end
 
+function process_replay()
+ gc-=1
+ if(cx!=sn.x or cy!=sn.y)then
+  cx,cy=sn.x,sn.y
+  gc,gd=30,true
+ elseif(gc<=0 or mb==1 or
+   btnp(5))then
+  hc=cocreate(move_stone)
+  coresume(hc)
+ end
+end
+
 function move_stone()
  local i,t1,t2
- local tx,ty=coord(cx,cy)
+ local x,y=coord(cx,cy)
  for i=1,7 do
   t1=i*i/64 t2=1-t1
-  hx=tx*t1+114*t2
-  hy=ty*t1+100*t2
+  hx=x*t1+114*t2
+  hy=y*t1+100*t2
   gd=true
   yield()
  end
- hx,hy=114,100
+ hx,hy=x,y
 end
+
+pq={25,50,100,200,400,600,800,
+  1000,5000,10000}
+pb={100,500,1000}
 
 function reach_stone()
  local _,c=get_stone(cx,cy)
@@ -342,14 +340,10 @@ function reach_stone()
   if(si>70)pk+=pb[si-70]
  end
  if(pk>0)pt+=pk ph=15
- if(not ge)do
-  if(update_hiscore()==1)then
-   encode_stones()
-  end
- end
+ if(not ge)update_hiscore()
  ds=n*2+2
- gd=true
  hc=nil
+ gd=true
 end
 
 function add_sparks(x,y,s,n)
@@ -396,7 +390,8 @@ end
 function tune_music()
  if(si<=32)then
   -- phase1; loop 01-05
-  if(stat(16)!=10)then
+  local z=stat(16)
+  if(z==-1 or z>10)then
    poke(0x3114,10)
    poke(0x3115,141)
    poke(0x3125,145)
@@ -414,29 +409,18 @@ function tune_music()
  end
 end
 
+function get_hiscore()
+ return dget(0),dget(1)
+end
+
 function update_hiscore()
- local i,p,f
- for i=5,1,-1 do
-  p,f=get_hiscore(i)
-  if(p>pt)return i+1
-  if(i<5)set_hiscore(i+1,p,f)
-  set_hiscore(i,pt,pf)
+ if(not gr and pp<pt)then
+  pp=pt
+  dset(0,pt)
+  dset(1,pf)
+  encode_stones()
  end
- return 1
 end
-
-function get_hiscore(n)
- return
-   dgetb(n*3)+dgetb(n*3+1)*256,
-   dgetb(n*3+2)
-end
-
-function set_hiscore(n,p,f)
- dsetb(n*3,p%256)
- dsetb(n*3+1,shr(p,8))
- dsetb(n*3+2,f)
-end
-
 
 function encode_stones()
  local a=20
@@ -485,9 +469,9 @@ function draw_game()
  shake_camera(ds)
  draw_board()
  draw_particles()
- if(sq>0)draw_shine()
- if(ge and hc==nil)draw_cursor()
+ draw_shine()
  camera(0,0)
+ draw_cursor()
  draw_status()
  draw_stone(114,100,{t=7,c=0})
  draw_stone(hx,hy,sn)
@@ -511,6 +495,7 @@ function draw_particles()
 end
 
 function draw_shine()
+ if(sq==0)return
  local x,y=coord(sx,sy)
  local v,w=sq/2,150/sq
  rectfill(x+5-v,y+5-w,
@@ -520,22 +505,28 @@ function draw_shine()
 end
 
 function draw_cursor()
- local dx,dy=coord(cx,cy)
- spr(84,dx+4,dy+4)
+ if(ce and ge and hc==nil)then
+  local dx,dy=coord(cx,cy)
+  spr(84,dx+4,dy+4)
+ end
 end
 
 function draw_status()
  print("score",4,104,7)
  print("4-way ",56,104)
  print("next",96,104)
+ print("best",8,112)
  print("rest ",96,112)
  draw_number(48,104,"",pt,7)
  draw_number(88,104,"",pf,7)
+ draw_number(48,112,"",pp,7)
  draw_number(124,112,"",73-si,7)
  if(ph>0)then
-  draw_number(48,110,"+",pk,9)
+  draw_number(48,98,"+",pk,9)
  end
- if(not ge)then
+ if(ge)then
+  if(gr)print("replay",52,92,14)
+ else
   if(si==73)then
    print("completed!",44,92,10)
   else
@@ -551,17 +542,11 @@ function draw_number(x,y,g,n,c)
 end
 
 function draw_guide()
- local c=13
- if(rt>0 and rt<=30)then
-  c=10
-  line(rt,118,30,118,c)
- end
- print("\x8e retry",0,120,c)
+ print("\x8e menu",0,120,13)
  if(ge)then
   print("\x97 place",36,120,13)
  end 
 end
-
 
 function draw_stone(x,y,s)
  local c=s.c if(s.t>6)c+=6
@@ -576,16 +561,122 @@ function coord(x,y)
  return x*10+4,y*10+8
 end
 
+-- menu
+
+function init_menu_title()
+ gm=5
+ em={
+  x=24,y=76,w=80,b=6,
+  l={"new game",
+     "replay best move",
+     "instruction"},
+  f=on_menu_title
+ }
+ if(pp==0)del(em.l,em.l[2])
+ ey,ee=1,true
+ gd=true
+end
+
+function on_menu_title(z)
+ if(z>1 and pp==0)z+=1
+ if(z==1)init_game(false)
+ if(z==2)init_game(true)
+ if(z==3)init_inst()
+ sfx(8)
+end
+
+function init_menu_game()
+ gm=5
+ em={
+  x=30,y=29,w=68,b=6,
+  l={"cancel menu",
+     "new game",
+     "replay",
+     "back to title"},
+  f=on_menu_game
+ }
+ if(ge)del(em.l,em.l[3])
+ ey,ee=1,true
+ sfx(8)
+ gd=true
+end
+
+function on_menu_game(z)
+ if(z>2 and ge)z+=1
+ if(z==1)sfx(9) gm,gd=4,true
+ if(z==2)sfx(7) init_game(false)
+ if(z==3)sfx(8) init_game(true)
+ if(z==4)sfx(9) init_title()
+end
+
+function update_menu()
+ local _,w=handle_dpad()
+ if(w!=0)then
+  if(ee)then
+   ey+=w
+   if(ey<1)ey=#em.l
+   if(ey>#em.l)ey=1
+  else
+   ee=true
+  end
+  gd=true 
+ end
+ if(mm)then
+  local z=em.y+3 if(em.t)z+=10
+  local y=ey
+  local e=(mx>=em.x and my>=z
+    and mx<em.x+em.w and
+    my<z+#em.l*8)
+  if(e)y=flr((my-z)/8)+1
+  if(y!=ey or e!=ee)then
+   ey,ee,gd=y,e,true
+  end
+ end
+ if(ee and is_any_op())then
+  em.f(ey)
+ end
+end
+
+function draw_menu()
+ local x,y,w=em.x,em.y,em.w
+ local h=#em.l*8+6
+ if(em.t)h+=10
+ rectfill(x,y,x+w-1,y+h-1,0)
+ rect(x,y,x+w-1,y+h-1,em.b)
+ local t,z=em.t,y-4
+ if(t!=nil)then
+  print(t,x+w/2-#t*2,y+5,10)
+  z=y+6
+ end
+ local i,c
+ for i=1,#em.l do
+  c=5 if(ee and i==ey)c=7
+  print(em.l[i],x+10,z+i*8,c)
+ end
+ if(ee)print(">",x+4,z+ey*8,7)
+end
+
 -- utils
 
 function rndi(n)
  return flr(rnd(n))
 end
 
+function handle_dpad()
+ local vx,vy=0,0
+ if(btnp(0))vx-=1
+ if(btnp(1))vx+=1
+ if(btnp(2))vy-=1
+ if(btnp(3))vy+=1
+ return vx,vy
+end
+
 function check_mouse()
  local x,y=stat(32),stat(33)
  mm=(x!=mx or y!=my)
- mx,my,mb=x,y,stat(34)
+ mx,my=x,y
+ mb+=1
+ if(band(stat(34),1)==0)mb=0
 end
 
 function dgetb(a)
@@ -605,19 +696,22 @@ end
 update_fn={
  update_logo,
  update_title,
- update_start,
- update_game
+ update_inst,
+ update_game,
+ update_menu,
 }
 
 function _update()
+ check_mouse()
  update_fn[gm]()
 end
 
 draw_fn={
  draw_logo,
  draw_title,
- draw_start,
- draw_game
+ draw_inst,
+ draw_game,
+ draw_menu,
 }
 
 function _draw()
@@ -799,8 +893,8 @@ __sfx__
 01040000245701856524505285701c565245352b5701f5652853530570245652b5352f57023565305352d570215652f5352f570235652d53530570245652f535000002f515305350000000000305150000000000
 000300000f0761b07627076330763f0713f0733f0713f0733f0713f0733f0713f0733f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0613f0513f0413f0313f0213f011
 000200003b5703b50037500395703250039500375703b5403350035570395403950033570375403b5203157035540395202f57033540375202d57031540355202b5702f54033520325002d54031520300002b540
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0008000017365233552f3450000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000800002b3651f355133450000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 010700200e4440e44500404154201144411445004040e42015444154450040411420184441844500404154201a4441a445184041842018444184451a4041a4201a4441a44500404184201544415445154041a420
 01070020154250e4051a4100e4240e42500404154101142411425004040e41015424154250040411410184241842500404154101a4241a425184041841018424184251a4041a4101a4241a425004041841015424
 010700203c6203c6113c6150e4243c62500404154101142411425004040e41015424154250040411410184241842500404154101a4241a425184041841018424184251a4041a4101a4241a425004041841015424
@@ -861,7 +955,7 @@ __music__
 00 0a0c1644
 00 0a0c1744
 00 0a0c4344
-02 0a0d4344
+00 0e0f4344
 01 0e101544
 00 0e101644
 00 0e101744
