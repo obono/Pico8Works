@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 
--- ishido v0.23
+-- ishido v0.30
 
 --copyright (c) 2017 obono
 --released under the mit license
@@ -30,7 +30,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p04 ver 0.23",
+ print("obn-p04 ver 0.30",
    32,82,6)
 end
 
@@ -67,11 +67,27 @@ end
 
 function init_inst()
  gm=3
+ iy,iw,ib=0,0,nil
  gd=true
 end
 
 function update_inst()
- if(is_any_op())then
+ local w,z=0,#inst*8-120
+ if(btn(2))w-=1
+ if(btn(3))w+=1
+ iw=mid(-8,iw*abs(w)+w,8)
+ if(mb>0)then
+  if(mb==1)ib=my
+  if(ib!=nil)then
+   iw,ib=mid(-8,ib-my,8),my
+  end
+ else
+  ib=nil
+ end
+ if(iw!=0)then
+  iy,gd=mid(0,iy+iw,z),true
+ end
+ if(is_menu_op())then
   sfx(9)
   init_title()
  end
@@ -79,7 +95,14 @@ end
 
 function draw_inst()
  cls()
- print("instruction",0,0,7)
+ local i,y=flr(iy/8)+1,-(iy%8)
+ while(y<118)do
+  print(inst[i],0,y,6)
+  i+=1 y+=8
+ end
+ rectfill(0,118,127,127,0)
+ print("\x8e exit  \x94\x83 "..
+   "scroll",0,120,13)
 end
 
 -- game
@@ -717,6 +740,84 @@ draw_fn={
 function _draw()
  if(gd)draw_fn[gm]() gd=false
 end
+
+-- instruction text
+
+inst={
+"the game has 72 stones, with a",
+"total of 6 colors and 6 symbols.",
+"there are 2 stones for each",
+"combination of color and symbol.",
+"",
+"initially, the board has 6",
+"stones on it, chosen to have all",
+"6 colors and all 6 symbols. you",
+"place the remaining 66 stones",
+"one at a time, adjacent to",
+"existing stones, subject to the",
+"following rules.",
+"",
+"- adjacent to 1 stone, you must",
+"  match the existing stone",
+"  either by color or by symbol.",
+"",
+"- adjacent to 2 stones, you must",
+"  match 1 by color and the other",
+"  by symbol.",
+"",
+"- adjacent to 3 stones, you must",
+"  match 1 by color and the other",
+"  2 by symbol, or 1 by symbol",
+"  and the other 2 by color.",
+"",
+"- placing a stone adjacent to 4",
+"  stones creates a \"4-way\". the",
+"  new stone must match 2 of the",
+"  stones by color and the other",
+"  2 by symbol. creating 4-ways",
+"  can greatly increase your",
+"  score.",
+"",
+"the game ends when you have",
+"placed all the stones, or when",
+"there is nowhere to place the",
+"next stone.",
+"",
+"the scoring for placing a stone",
+"is as follows:",
+"",
+"- adjacent to 1 stone:  1 pt;",
+"- adjacent to 2 stones: 2 pts;",
+"- adjacent to 3 stones: 4 pts;",
+"- adjacent to 4 stones: 8 pts.",
+"",
+"you get no points for placing a",
+"stone in the squares along the",
+"outside edges, though those",
+"stones do help when placing",
+"future stones.",
+"",
+"creating a 4-way doubles the",
+"above schedule, for each 4-way.",
+"additionally, 4-ways get the",
+"following bonus points:",
+"",
+"- 1st 4-way: 25 pts.",
+"- 2nd 4-way: 50 pts.",
+"- 3rd 4-way: 100 pts.",
+"- 4th 4-way: 200 pts.",
+"- 5th 4-way: 400 pts.",
+"- 6th 4-way: 600 pts.",
+"- 7th 4-way: 800 pts.",
+"- 8th 4-way: 1000 pts.",
+"- 9th 4-way: 5000 pts.",
+"- 10th 4-way: 10000 pts.",
+"",
+"finally, placing all the stones",
+"gets a bonus of 1000 pts; all",
+"but 1 a bonus of 500 pts; and",
+"all but 2 a bonus of 100 pts.",
+}
 
 __gfx__
 00000000007777777777777777777777777777777777777777777777777777777777775555555555000000000000000000000000777777777777777777777777
