@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 
--- ishido v0.30
+-- ishido v0.31
 
 --copyright (c) 2017 obono
 --released under the mit license
@@ -30,7 +30,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p04 ver 0.30",
+ print("obn-p04 ver 0.31",
    32,82,6)
 end
 
@@ -79,7 +79,7 @@ function update_inst()
  if(mb>0)then
   if(mb==1)ib=my
   if(ib!=nil)then
-   iw,ib=mid(-8,ib-my,8),my
+   iw,ib=ib-my,my
   end
  else
   ib=nil
@@ -254,17 +254,22 @@ function update_game()
 end
 
 function is_any_op()
- return mb==1 or btnp(4)
-   or btnp(5)
+ return btnp(4) or btnp(5) or
+   mb==1
 end
 
 function is_menu_op()
- return (not ce and mx<32 and
-   my>=120 and mb==1) or btnp(4)
+ return btnp(4) or
+   mb==1 and is_menu_area()
 end
 
 function is_place_op()
- return ce and(mb==1 or btnp(5))
+ return ce and (btnp(5) or
+   mb==1 and not is_menu_area())
+end
+
+function is_menu_area()
+ return mx<36 and my>=112
 end
 
 function move_particles()
@@ -314,8 +319,8 @@ function process_replay()
  if(cx!=sn.x or cy!=sn.y)then
   cx,cy=sn.x,sn.y
   gc,gd=30,true
- elseif(gc<=0 or mb==1 or
-   btnp(5))then
+ elseif(is_place_op() or
+   gc<=0)then
   hc=cocreate(move_stone)
   coresume(hc)
  end
