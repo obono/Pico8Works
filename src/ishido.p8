@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 
--- ishido v0.20
+-- ishido v0.31
 
 --copyright (c) 2017 obono
 --released under the mit license
@@ -12,7 +12,8 @@ __lua__
 
 function init_logo()
  cartdata("obono_ishido")
- poke(0x5f2d,1)
+ poke(0x5f2d,1) -- enable mouse
+ mb=0
  gm=1
  gc=60 -- wait 2s
  gd=true
@@ -29,7 +30,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p04 ver 0.20",
+ print("obn-p04 ver 0.31",
    32,82,6)
 end
 
@@ -37,16 +38,16 @@ end
 
 function init_title()
  gm=2
+ pp,_=get_hiscore()
+ decode_stones()
+ music(-1)
  gd=true
 end
 
 function update_title()
- check_mouse()
- if(btnp(4) or btnp(5) or
-   band(mb,1)>0)then
-  --init_start()
+ if(is_any_op())then
   sfx(0)
-  init_game(true)
+  init_menu_title()
  end
 end
 
@@ -57,47 +58,71 @@ function draw_title()
    "stones",12,66,6)
  print("press any button",
    32,88,7)
- print("2017.08 "..
+ print("2017.09 "..
    "programmed by obono",
    10,112,5)
 end
 
--- starting
+-- instruction
 
-function init_start()
+function init_inst()
  gm=3
- gc=30
- sfx(0)
+ iy,iw,ib=0,0,nil
  gd=true
 end
 
-function update_start()
- gc-=1
- if(gc<=0)init_game(true)
- gd=true
+function update_inst()
+ local w,z=0,#inst*8-120
+ if(btn(2))w-=1
+ if(btn(3))w+=1
+ iw=mid(-8,iw*abs(w)+w,8)
+ if(mb>0)then
+  if(mb==1)ib=my
+  if(ib!=nil)then
+   iw,ib=ib-my,my
+  end
+ else
+  ib=nil
+ end
+ if(iw!=0)then
+  iy,gd=mid(0,iy+iw,z),true
+ end
+ if(is_menu_op())then
+  sfx(9)
+  init_title()
+ end
 end
 
-function draw_start()
+function draw_inst()
  cls()
- print("starting "..gc,0,0,7)
+ local i,y=flr(iy/8)+1,-(iy%8)
+ while(y<118)do
+  print(inst[i],0,y,6)
+  i+=1 y+=8
+ end
+ rectfill(0,118,127,127,0)
+ print("\x8e exit  \x94\x83 "..
+   "scroll",0,120,13)
 end
 
 -- game
 
 function init_game(z)
  gm=4
- gd=true
- shuffle_stones()
- adjust_stones()
+ gr=z
+ if(not gr)then
+  shuffle_stones()
+  adjust_stones()
+ end
  init_board()
- ge=check_field(7)
- pt,pf=0,0
- cx,cy=6,4
- rt=32
- ds=0
- hc=nil
+ ge=eval_field(7)
+ pt,pf,pk,ph=0,0,0,0
+ cx,cy,ce=6,4,true
  pa={}
+ ds=0
  sq=0
+ hc=nil
+ gd=true
 end
 
 function shuffle_stones()
@@ -106,7 +131,7 @@ function shuffle_stones()
  for i=1,2 do
   for t=1,6 do
    for c=0,5 do
-    add(sa,{t=t,c=c})
+    add(sa,{x=0,y=0,t=t,c=c})
    end
   end
  end
@@ -165,7 +190,7 @@ function place_stone(x,y,s)
  mset(x,y,s.t*6+s.c)
 end
 
-function check_field(i)
+function eval_field(i)
  si,sn=i,sa[i]
  hx,hy=114,100
  local x,y,n
@@ -180,6 +205,10 @@ function check_field(i)
  return r
 end
 
+function eval_pos(x,y)
+ return mget(x,y+8)
+end
+
 function can_place(x,y,s)
  if(s.t==7)return 0
  local t,c=get_stone(x,y)
@@ -187,8 +216,8 @@ function can_place(x,y,s)
  local i
  local ns,na,nt,nc=0,0,1,1
  for i=1,7,2 do
-  local vx,vy=i%3-1,flr(i/3)-1
-  t,c=get_stone(x+vx,y+vy)
+  local v,w=i%3-1,flr(i/3)-1
+  t,c=get_stone(x+v,y+w)
   if(t<7)then
    ns+=1
    local et,ec=(s.t==t),(s.c==c)
@@ -201,136 +230,156 @@ function can_place(x,y,s)
  return ns
 end
 
-pq={25,50,100,200,400,600,800,
-  1000,5000,10000}
-pb={100,500,1000}
-
 function update_game()
- check_mouse()
+ tune_music()
  move_particles()
+ if(ph>0)ph-=1 gd=true
+ if(ds>0)ds-=1 gd=true
  if(sq>0)sq-=1 gd=true
  if(hc!=nil)then
-  coresume(hc)
-  return
+  if(not coresume(hc))then
+   reach_stone()
+  end
+ elseif(ge)then
+  if(gr)then
+   process_replay()
+  else
+   move_cursor()
+   process_place()
+  end
  end
- if(ds>0)ds-=1 gd=true
- if(process_retry())return
- if(ge)then
-  move_cursor()
-  process_place()
+ if(is_menu_op())then
+  init_menu_game()
  end
 end
 
-function handle_dpad()
- local vx,vy=0,0
- if(btnp(0))vx-=1
- if(btnp(1))vx+=1
- if(btnp(2))vy-=1
- if(btnp(3))vy+=1
- return vx,vy
+function is_any_op()
+ return btnp(4) or btnp(5) or
+   mb==1
 end
 
-function is_retry_op()
- return (mx<32 and my>=120 and
-   band(mb,1)>0) or btn(4)
+function is_menu_op()
+ return btnp(4) or
+   mb==1 and is_menu_area()
 end
 
 function is_place_op()
- return (mx>=4 and mx<124 and
-   my>=8 and my<88 and
-   band(mb,1)>0) or btn(5)
+ return ce and (btnp(5) or
+   mb==1 and not is_menu_area())
+end
+
+function is_menu_area()
+ return mx<36 and my>=112
 end
 
 function move_particles()
  for p in all(pa) do
   p.x+=p.v p.y+=p.w
   p.v*=3/4 p.w*=3/4
-  if(abs(p.v)<1/8 or
-    abs(p.w)<1/8)then del(pa,p)
+  if(p.v*p.v+p.w*p.w<1/64)then
+   del(pa,p)
   end
   gd=true
  end
 end
 
-function process_retry()
- if(rt==0 and is_retry_op())rt=1
- if(rt==0)return false
- if(is_retry_op())then
-  if(rt<32)rt+=1
-  if(rt==31)then
-   sfx(7)
-   init_game(false)
-  end
- else
-  rt=0
- end
- gd=true
- return true
-end
-
 function move_cursor()
- local vx,vy=handle_dpad()
- if(vx!=0)then
-  gd=true cx=(cx+vx+12)%12
- end
- if(vy!=0)then
-  gd=true cy=(cy+vy+8)%8
+ local v,w=handle_dpad()
+ if(v!=0 or w!=0)then
+  if(ce)then
+   if(v!=0)cx=(cx+v+12)%12
+   if(w!=0)cy=(cy+w+8)%8
+  else
+   ce=true
+  end
+  gd=true
  end
  if(mm)then
   local x=flr((mx-4)/10)
   local y=flr((my-8)/10)
-  if(x>=0 and x<12 and y>=0 and
-    y<8 and(x!=cx or y!=cy))then
-   cx,cy=x,y
-   gd=true
+  local e=(x>=0 and x<12 and
+    y>=0 and y<8)
+  if(e!=ce)ce,gd=e,true
+  if(e and(x!=cx or y!=cy))then
+   cx,cy,gd=x,y,true
   end
  end
 end
 
 function process_place()
  if(not is_place_op())return
- local n=mget(cx,cy+8)
- if(n>0)then
-  hc=cocreate(animate_place)
-  coresume(hc,cx,cy,n)
+ if(eval_pos(cx,cy)>0)then
+  hc=cocreate(move_stone)
+  coresume(hc)
  end
 end
 
-function animate_place(x,y,n)
+function process_replay()
+ gc-=1
+ if(cx!=sn.x or cy!=sn.y)then
+  cx,cy=sn.x,sn.y
+  gc,gd=30,true
+ elseif(is_place_op() or
+   gc<=0)then
+  hc=cocreate(move_stone)
+  coresume(hc)
+ end
+end
+
+function move_stone()
  local i,t1,t2
- local tx,ty=coord(x,y)
- for i=1,8 do
+ local x,y=coord(cx,cy)
+ for i=1,7 do
   t1=i*i/64 t2=1-t1
-  hx=tx*t1+114*t2
-  hy=ty*t1+100*t2
+  hx=x*t1+114*t2
+  hy=y*t1+100*t2
   gd=true
   yield()
  end
- local _,c=get_stone(x,y)
- place_stone(x,y,sn)
- add_spark(x,y,0,-1,sn,n)
- add_spark(x,y,0,1,sn,n)
- add_spark(x,y,-1,0,sn,n)
- add_spark(x,y,1,0,sn,n)
- if(c==0)pt+=shl(1,n+pf-1)
+ hx,hy=x,y
+end
+
+pq={25,50,100,200,400,600,800,
+  1000,5000,10000}
+pb={100,500,1000}
+
+function reach_stone()
+ local _,c=get_stone(cx,cy)
+ local n=eval_pos(cx,cy)
+ place_stone(cx,cy,sn)
+ sa[si].x,sa[si].y=cx,cy
+ add_sparks(cx,cy,sn,n)
+ pk,ph=0,0
+ if(c==0)pk=shl(1,pf+n-1)
  if(n==4)then
-  pf+=1 pt+=pq[pf]
-  add_shine(x,y)
+  pf+=1 pk+=pq[pf]
+  add_shine(cx,cy)
  end
- ge=check_field(si+1)
+ ge=eval_field(si+1)
  if(ge)then
   sfx(n+1)
  else
+  music(-1)
   if(si==73)then
    sfx(6)
   else
    sfx(1)
   end
-  if(si>70)pt+=pb[si-70]
+  if(si>70)pk+=pb[si-70]
  end
- ds=n*4
- gd=true
+ if(pk>0)pt+=pk ph=15
+ if(not ge)update_hiscore()
+ ds=n*2+2
  hc=nil
+ gd=true
+end
+
+function add_sparks(x,y,s,n)
+ local i
+ for i=1,7,2 do
+  local v,w=i%3-1,flr(i/3)-1
+  add_spark(x,y,v,w,s,n)
+ end
 end
 
 function add_spark(x,y,v,w,s,n)
@@ -356,7 +405,7 @@ function add_spark(x,y,v,w,s,n)
 end
 
 function add_shine(x,y)
- sx,sy,sq=x,y,5
+ sx,sy,sq=x,y,10
 end
 
 function get_stone(x,y)
@@ -366,15 +415,93 @@ function get_stone(x,y)
  return flr(z/6),z%6
 end
 
+function tune_music()
+ if(si<=32)then
+  -- phase1; loop 01-05
+  local z=stat(16)
+  if(z==-1 or z>10)then
+   poke(0x3114,10)
+   poke(0x3115,141)
+   poke(0x3125,145)
+   music(0,0,7)
+  end
+ elseif(si<=62)then
+  -- phase2; loop 06-09
+  if(stat(17)!=13)then
+   poke(0x3114,14)
+   poke(0x3115,15)
+  end
+ else
+  -- phase3; loop 10
+  poke(0x3125,17)
+ end
+end
+
+function get_hiscore()
+ return dget(0),dget(1)
+end
+
+function update_hiscore()
+ if(not gr and pp<pt)then
+  pp=pt
+  dset(0,pt)
+  dset(1,pf)
+  encode_stones()
+ end
+end
+
+function encode_stones()
+ local a=20
+ local i,z,b
+ for i=1,72,2 do
+  z=encode_stone(sa[i])
+  b=encode_stone(sa[i+1])
+  dsetb(a,z%256)
+  dsetb(a+1,flr(z/256)+b%16*16)
+  dsetb(a+2,flr(b/16))
+  a+=3
+ end
+end
+
+function encode_stone(s)
+ return s.x*288+s.y*36+
+   (s.t-1)*6+s.c
+end
+
+function decode_stones()
+ local a=20
+ local i,z,b
+ sa={}
+ for i=1,36 do
+  b=dgetb(a+1)
+  z=dgetb(a)+b%16*256
+  add(sa,decode_stone(z))
+  z=flr(b/16)+dgetb(a+2)*16
+  add(sa,decode_stone(z))
+  a+=3
+ end
+ add(sa,{t=7,c=0})
+end
+
+function decode_stone(z)
+ return {
+   x=flr(z/288),
+   y=flr(z/36)%8,
+   t=(flr(z/6)%6)+1,
+   c=z%6
+ }
+end
+
 function draw_game()
  cls()
  shake_camera(ds)
  draw_board()
  draw_particles()
- if(sq>0)draw_shine()
- if(ge and hc==nil)draw_cursor()
+ draw_shine()
  camera(0,0)
+ draw_cursor()
  draw_status()
+ draw_stone(114,100,{t=7,c=0})
  draw_stone(hx,hy,sn)
  draw_guide()
 end
@@ -390,30 +517,44 @@ end
 
 function draw_particles()
  for p in all(pa) do
-   line(p.x,p.y,p.x-p.v,p.y-p.w,p.c)
+   line(p.x,p.y,
+     p.x-p.v,p.y-p.w,p.c)
  end
 end
 
 function draw_shine()
+ if(sq==0)return
  local x,y=coord(sx,sy)
- local z=75/sq
- rectfill(x+5-sq,y+5-z,
-   x+4+sq,y+4+z,7)
- rectfill(x+5-z,y+5-sq,
-   x+4+z,y+4+sq,7)
+ local v,w=sq/2,150/sq
+ rectfill(x+5-v,y+5-w,
+   x+4+v,y+4+w,7)
+ rectfill(x+5-w,y+5-v,
+   x+4+w,y+4+v,7)
 end
 
 function draw_cursor()
- local dx,dy=coord(cx,cy)
- spr(84,dx+4,dy+4)
+ if(ce and ge and hc==nil)then
+  local dx,dy=coord(cx,cy)
+  spr(84,dx+4,dy+4)
+ end
 end
 
 function draw_status()
- print("score "..pt,8,104,7)
- print("4-way "..pf,60,104)
+ print("score",4,104,7)
+ print("4-way ",56,104)
  print("next",96,104)
- print("rest "..(73-si),96,112)
- if(not ge)then
+ print("best",8,112)
+ print("rest ",96,112)
+ draw_number(48,104,"",pt,7)
+ draw_number(88,104,"",pf,7)
+ draw_number(48,112,"",pp,7)
+ draw_number(124,112,"",73-si,7)
+ if(ph>0)then
+  draw_number(48,98,"+",pk,9)
+ end
+ if(ge)then
+  if(gr)print("replay",52,92,14)
+ else
   if(si==73)then
    print("completed!",44,92,10)
   else
@@ -423,18 +564,17 @@ function draw_status()
  end
 end
 
+function draw_number(x,y,g,n,c)
+ local z=g..n
+ print(z,x-#z*4,y,c)
+end
+
 function draw_guide()
- local c=13
- if(rt>0 and rt<=30)then
-  c=10
-  line(rt,118,30,118,c)
- end
- print("\x8e retry",0,120,c)
+ print("\x8e menu",0,120,13)
  if(ge)then
   print("\x97 place",36,120,13)
  end 
 end
-
 
 function draw_stone(x,y,s)
  local c=s.c if(s.t>6)c+=6
@@ -449,24 +589,130 @@ function coord(x,y)
  return x*10+4,y*10+8
 end
 
+-- menu
+
+function init_menu_title()
+ gm=5
+ em={
+  x=24,y=76,w=80,b=6,
+  l={"new game",
+     "replay best move",
+     "instruction"},
+  f=on_menu_title
+ }
+ if(pp==0)del(em.l,em.l[2])
+ ey,ee=1,true
+ gd=true
+end
+
+function on_menu_title(z)
+ if(z>1 and pp==0)z+=1
+ if(z==1)init_game(false)
+ if(z==2)init_game(true)
+ if(z==3)init_inst()
+ sfx(8)
+end
+
+function init_menu_game()
+ gm=5
+ em={
+  x=30,y=29,w=68,b=6,
+  l={"cancel menu",
+     "new game",
+     "replay",
+     "back to title"},
+  f=on_menu_game
+ }
+ if(ge)del(em.l,em.l[3])
+ ey,ee=1,true
+ sfx(8)
+ gd=true
+end
+
+function on_menu_game(z)
+ if(z>2 and ge)z+=1
+ if(z==1)sfx(9) gm,gd=4,true
+ if(z==2)sfx(7) init_game(false)
+ if(z==3)sfx(8) init_game(true)
+ if(z==4)sfx(9) init_title()
+end
+
+function update_menu()
+ local _,w=handle_dpad()
+ if(w!=0)then
+  if(ee)then
+   ey+=w
+   if(ey<1)ey=#em.l
+   if(ey>#em.l)ey=1
+  else
+   ee=true
+  end
+  gd=true 
+ end
+ if(mm)then
+  local z=em.y+3 if(em.t)z+=10
+  local y=ey
+  local e=(mx>=em.x and my>=z
+    and mx<em.x+em.w and
+    my<z+#em.l*8)
+  if(e)y=flr((my-z)/8)+1
+  if(y!=ey or e!=ee)then
+   ey,ee,gd=y,e,true
+  end
+ end
+ if(ee and is_any_op())then
+  em.f(ey)
+ end
+end
+
+function draw_menu()
+ local x,y,w=em.x,em.y,em.w
+ local h=#em.l*8+6
+ if(em.t)h+=10
+ rectfill(x,y,x+w-1,y+h-1,0)
+ rect(x,y,x+w-1,y+h-1,em.b)
+ local t,z=em.t,y-4
+ if(t!=nil)then
+  print(t,x+w/2-#t*2,y+5,10)
+  z=y+6
+ end
+ local i,c
+ for i=1,#em.l do
+  c=5 if(ee and i==ey)c=7
+  print(em.l[i],x+10,z+i*8,c)
+ end
+ if(ee)print(">",x+4,z+ey*8,7)
+end
+
 -- utils
 
 function rndi(n)
  return flr(rnd(n))
 end
 
+function handle_dpad()
+ local vx,vy=0,0
+ if(btnp(0))vx-=1
+ if(btnp(1))vx+=1
+ if(btnp(2))vy-=1
+ if(btnp(3))vy+=1
+ return vx,vy
+end
+
 function check_mouse()
  local x,y=stat(32),stat(33)
  mm=(x!=mx or y!=my)
- mx,my,mb=x,y,stat(34)
+ mx,my=x,y
+ mb+=1
+ if(band(stat(34),1)==0)mb=0
 end
 
-function dgetb(n,t)
- return peek(0x5dff+n*10+t)
+function dgetb(a)
+ return peek(0x5e00+a)
 end
 
-function dputb(n,t,z)
- poke(0x5dff+n*10+t,z)
+function dsetb(a,z)
+ poke(0x5e00+a,z)
 end
 
 -- pico-8 special functions
@@ -478,24 +724,105 @@ end
 update_fn={
  update_logo,
  update_title,
- update_start,
- update_game
+ update_inst,
+ update_game,
+ update_menu,
 }
 
 function _update()
+ check_mouse()
  update_fn[gm]()
 end
 
 draw_fn={
  draw_logo,
  draw_title,
- draw_start,
- draw_game
+ draw_inst,
+ draw_game,
+ draw_menu,
 }
 
 function _draw()
  if(gd)draw_fn[gm]() gd=false
 end
+
+-- instruction text
+
+inst={
+"the game has 72 stones, with a",
+"total of 6 colors and 6 symbols.",
+"there are 2 stones for each",
+"combination of color and symbol.",
+"",
+"initially, the board has 6",
+"stones on it, chosen to have all",
+"6 colors and all 6 symbols. you",
+"place the remaining 66 stones",
+"one at a time, adjacent to",
+"existing stones, subject to the",
+"following rules.",
+"",
+"- adjacent to 1 stone, you must",
+"  match the existing stone",
+"  either by color or by symbol.",
+"",
+"- adjacent to 2 stones, you must",
+"  match 1 by color and the other",
+"  by symbol.",
+"",
+"- adjacent to 3 stones, you must",
+"  match 1 by color and the other",
+"  2 by symbol, or 1 by symbol",
+"  and the other 2 by color.",
+"",
+"- placing a stone adjacent to 4",
+"  stones creates a \"4-way\". the",
+"  new stone must match 2 of the",
+"  stones by color and the other",
+"  2 by symbol. creating 4-ways",
+"  can greatly increase your",
+"  score.",
+"",
+"the game ends when you have",
+"placed all the stones, or when",
+"there is nowhere to place the",
+"next stone.",
+"",
+"the scoring for placing a stone",
+"is as follows:",
+"",
+"- adjacent to 1 stone:  1 pt;",
+"- adjacent to 2 stones: 2 pts;",
+"- adjacent to 3 stones: 4 pts;",
+"- adjacent to 4 stones: 8 pts.",
+"",
+"you get no points for placing a",
+"stone in the squares along the",
+"outside edges, though those",
+"stones do help when placing",
+"future stones.",
+"",
+"creating a 4-way doubles the",
+"above schedule, for each 4-way.",
+"additionally, 4-ways get the",
+"following bonus points:",
+"",
+"- 1st 4-way: 25 pts.",
+"- 2nd 4-way: 50 pts.",
+"- 3rd 4-way: 100 pts.",
+"- 4th 4-way: 200 pts.",
+"- 5th 4-way: 400 pts.",
+"- 6th 4-way: 600 pts.",
+"- 7th 4-way: 800 pts.",
+"- 8th 4-way: 1000 pts.",
+"- 9th 4-way: 5000 pts.",
+"- 10th 4-way: 10000 pts.",
+"",
+"finally, placing all the stones",
+"gets a bonus of 1000 pts; all",
+"but 1 a bonus of 500 pts; and",
+"all but 2 a bonus of 100 pts.",
+}
 
 __gfx__
 00000000007777777777777777777777777777777777777777777777777777777777775555555555000000000000000000000000777777777777777777777777
@@ -672,22 +999,22 @@ __sfx__
 01040000245701856524505285701c565245352b5701f5652853530570245652b5352f57023565305352d570215652f5352f570235652d53530570245652f535000002f515305350000000000305150000000000
 000300000f0761b07627076330763f0713f0733f0713f0733f0713f0733f0713f0733f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0713f0613f0513f0413f0313f0213f011
 000200003b5703b50037500395703250039500375703b5403350035570395403950033570375403b5203157035540395202f57033540375202d57031540355202b5702f54033520325002d54031520300002b540
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0008000017365233552f3450000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000800002b3651f355133450000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010700200e4440e44500404154201144411445004040e42015444154450040411420184441844500404154201a4441a445184041842018444184451a4041a4201a4441a44500404184201544415445154041a420
+01070020154250e4051a4100e4240e42500404154101142411425004040e41015424154250040411410184241842500404154101a4241a425184041841018424184251a4041a4101a4241a425004041841015424
+010700203c6203c6113c6150e4243c62500404154101142411425004040e41015424154250040411410184241842500404154101a4241a425184041841018424184251a4041a4101a4241a425004041841015424
+010700203c6203c6113c6150e4243c62500404154101142411425004040e41015424154250040411410184241842500404154101a4241a4251840418410184243c6203c6113c6151a4243c625004041841015424
+0107002002454024550e4100943405454054550941002434094540945502410054340c4540c45505410094340e4540e455094100c4340c4540c4550c4100e4340e4540e4550e4100c43409454094550c4100e434
+010700003c6203c6113c61502420000000000005420054203c6203c6113c6150942000000000000c4200c4200c0530e4000e4200e4203c6203c6150c4200c4203c6203c6150e4200e4203c6203c6153c6203c615
+010e00200c053024003c6153c6153c615094003c6153c6153c6203c6053c6153c6153c615094000c0533c6153c615024000c0533c6153c615094000c0533c6153c6203c6053c6153c6153c615094003c6153c615
+010e00200c053024003c6153c6153c615094003c6153c6153c6203c6053c6153c6153c615094000c0533c6150c053024003c6203c6150c053094003c6203c6150c0530c0533c6250c4003c6203c6153c6253c625
+010600200855408555145100f5340b5540b5550f510085340f5540f555085100b53412554125550b5100f53414554145550f5101253412554125551251014534145541455514510125340f5540f5551251014534
+010600000f52512500145140852408525145000f5140b5240b5250f500085140f5240f525085000b51412524125250b5000f51414524145250f5001251412524125251250014514145241452514500125140f524
+011c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+011c00001d0301d0201d0201d0201d0221d0221d0221d0221d0221d0221d0221d0221c0301a030150301a0301c0301c0201c0201c0201c0221c0221c0221c0221c0221c0221c0221c0221c0221c0221c0221c022
+011c00001d0301d0201d0201d0201d0221d0221d0221d0221d0221d0221d0221d0221c0301a030150301a0301c0301c0201c0201c0201c0221c0221c0221c0221c0221c0221c0221c0221f0301f0201f0201f020
+010e00001d0301d0201d0201d0201d0201d0201d0201d0201d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d0221d022
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -729,23 +1056,23 @@ __sfx__
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
+00 0a0b1444
+01 0a0c1544
+00 0a0c1644
+00 0a0c1744
+00 0a0c4344
+00 0e0f4344
+01 0e101544
+00 0e101644
+00 0e101744
+02 0e114344
+03 12134344
 00 41424344
 00 41424344
 00 41424344
 00 41424344
 00 41424344
 00 41424344
-00 41424344
-00 41424344
-00 41424344
-00 41424344
-00 41424344
-00 41424344
-00 41424344
-00 41424344
-00 41424344
-00 41424344
-00 50565144
 00 41424344
 00 41424344
 00 41424344
