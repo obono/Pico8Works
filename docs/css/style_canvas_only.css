@@ -1,0 +1,25 @@
+﻿body {
+	background-color: #333;
+	margin: 0px;
+}
+
+div.main {
+	width: 256px;
+}
+
+div.game {
+	width: 256px;
+}
+
+div.inst {
+	display: none;
+}
+
+canvas#canvas {
+	width: 256px;
+	height: 256px;
+}
+
+.pico8_el {
+	display: none;
+}

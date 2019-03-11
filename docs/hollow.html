@@ -1,13 +1,34 @@
-﻿<html>
+<!DOCTYPE html>
+<html lang="en">
 
-<head>
+<head prefix="og: http://ogp.me/ns#">
+
 <title>Hollow Seeker</title>
-<meta charset="utf-8">
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="description" content="">
-<link rel="stylesheet" href="css/style.css" type="text/css" media="all">
-<link rel="shortcut icon" type="image/vnd.microsoft.ico" href="img/favicon.ico">
+
+<meta property="og:title" content="Hollow Seeker">
+<meta property="og:description" content="Go forward in right direction. Seek a hollow as refuge not to be crushed.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://obono.github.io/Pico8Works/hollow.html">
+<meta property="og:image" content="https://obono.github.io/Pico8Works/img/thumb_hollow.png">
+<meta property="og:site_name" content="OBONO's PICO-8 Works">
+
+<meta name="twitter:card" content="player">
+<meta name="twitter:site" content="@OBONO">
+<meta name="twitter:title" content="Hollow Seeker">
+<meta name="twitter:description" content="Go forward in right direction. Seek a hollow as refuge not to be crushed.">
+<meta name="twitter:player" content="https://obono.github.io/Pico8Works/hollow.html?canvas_only">
+<meta name="twitter:player:width" content="256">
+<meta name="twitter:player:height" content="256">
+<meta name="twitter:image" content="https://obono.github.io/Pico8Works/img/thumb_hollow.png">
+
+<link rel="stylesheet" type="text/css" href="css/style.css">
+<link rel="stylesheet" type="text/css" href="css/style_canvas_only.css" disabled="true" id="canvas_only">
+<link rel="shortcut icon" type="image/vnd.microsoft.icon" href="img/favicon.ico">
 <link rel="icon" type="image/gif" href="img/favicon_anim.gif" sizes="16x16">
+
 </head>
 
 <body>
@@ -17,14 +38,14 @@
 <div class="game">
 <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 <script type="text/javascript">
+	if (window.location.search.indexOf('canvas_only') != -1) {
+		document.getElementById('canvas_only').disabled = false;
+	}
 	var canvas = document.getElementById("canvas");
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
 	var Module = {};
 	Module.canvas = canvas;
-</script>
-<script async type="text/javascript" src="js/hollow.js"></script>
-<script>
 	function onKeyDown_blocker(event) {
 		event = event || window.event;
 		var o = document.activeElement;
@@ -36,6 +57,7 @@
 	}
 	document.addEventListener('keydown', onKeyDown_blocker, false);
 </script>
+<script async type="text/javascript" src="js/hollow.js"></script>
 <br>
 <div class="pico8_el" onclick="Module.pico8Reset();">
 	<img src="img/reset.png" alt="Reset" width="12" height="12"> Reset
@@ -73,5 +95,7 @@ SEEK A HOLLOW AS REFUGE NOT TO BE CRUSHED.<br>
 </div>
 
 </div>
+
 </body>
+
 </html>
