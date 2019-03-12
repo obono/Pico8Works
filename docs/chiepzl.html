@@ -24,6 +24,13 @@
 <meta name="twitter:player:height" content="256">
 <meta name="twitter:image" content="https://obono.github.io/Pico8Works/img/thumb_chiepzl.png">
 
+<meta name="my:version" content="0.50">
+<meta name="my:release_date" content="Apr 30, 2016">
+<meta name="my:instruction" content="&#xd4;&#xc3;&#xcb;&#xd1;:Move,&#xd7;:Pick or release a piece,&#xce;+&#xcb;&#xd1;:Rotate,&#xce;+&#xd4;&#xc3;:Flip">
+<meta name="my:footnote" content="(Please see the instruction at the bottom of window)">
+<meta name="my:source_url" content="https://github.com/obono/Pico8Works/blob/master/src/chiepzl.p8">
+<meta name="my:thread_url" content="http://www.lexaloffle.com/bbs/?tid=3255">
+
 <link rel="stylesheet" type="text/css" href="css/style.css">
 <link rel="stylesheet" type="text/css" href="css/style_canvas_only.css" disabled="true" id="canvas_only">
 <link rel="shortcut icon" type="image/vnd.microsoft.icon" href="img/favicon.ico">
@@ -36,68 +43,9 @@
 <div class="main">
 
 <div class="game">
-<canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-<script type="text/javascript">
-	if (window.location.search.indexOf('canvas_only') != -1) {
-		document.getElementById('canvas_only').disabled = false;
-	}
-	var canvas = document.getElementById("canvas");
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
-	var Module = {};
-	Module.canvas = canvas;
-	function onKeyDown_blocker(event) {
-		event = event || window.event;
-		var o = document.activeElement;
-		if (!o || o == document.body || o.tagName == "canvas") {
-			if ([32, 37, 38, 39, 40].indexOf(event.keyCode) > -1) {
-				if (event.preventDefault) event.preventDefault();
-			}
-		}
-	}
-	document.addEventListener('keydown', onKeyDown_blocker, false);
-</script>
+<canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas><br>
+<script type="text/javascript" src="js/common.js"></script>
 <script async type="text/javascript" src="js/chiepzl.js"></script>
-<br>
-<div class="pico8_el" onclick="Module.pico8Reset();">
-	<img src="img/reset.png" alt="Reset" width="12" height="12"> Reset
-</div>
-<div class="pico8_el" onclick="Module.pico8TogglePaused();">
-	<img src="img/pause.png" alt="Pause" width="12" height="12"> Pause
-</div>
-<div class="pico8_el" onclick="Module.requestFullScreen(true, false);">
-	<img src="img/fullscreen.png" alt="Fullscreen" width="12" height="12"> Fullscreen
-</div>
-<div class="pico8_el" onclick="Module.pico8ToggleSound();">
-	<img src="img/sound.png" alt="Toggle Sound" width="12" height="12"> Sound
-</div>
-<div class="pico8_el">
-	<a target="_new" href="http://www.lexaloffle.com/bbs/?cat=7&sub=2">
-	<img src="img/carts.png" alt="More Carts" width="12" height="12"> Carts</a>
-</div>
-</div>
-
-<div class="inst">
-<h1>CHIE NO MAGARI ITA</h1>
-VERSION 0.50<br>
-(APR 30, 2016)<br>
-<br>
-THERE ARE 10 DIFFERENT PIECES.<br>
-YOU MUST PLACE ALL OF THEM INTO THE FRAME WITHOUT OVERLAPPING.<br>
-<dl>
-<dt>&#xd4;&#xc3;&#xcb;&#xd1;:</dt>
-<dd>MOVE</dd>
-<dt>&#xd7;:</dt>
-<dd>PICK OR RELEASE A PIECE</dd>
-<dt>&#xce;+&#xcb;&#xd1;:</dt>
-<dd>ROTATE</dd>
-<dt>&#xce;+&#xd4;&#xc3;:</dt>
-<dd>FLIP</dd>
-</dl>
-(PLEASE SEE THE INSTRUCTION AT THE BOTTOM OF WINDOW)<br>
-<br>
-<a target="_new" href="https://github.com/obono/Pico8Works/blob/master/src/chiepzl.p8">SOURCE CODE</a><br>
-<a target="_new" href="http://www.lexaloffle.com/bbs/?tid=3255">THREAD IN FORUM</a><br>
 </div>
 
 </div>

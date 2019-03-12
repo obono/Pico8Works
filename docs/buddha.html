@@ -9,7 +9,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
 <meta property="og:title" content="Attack of Buddha">
-<meta property="og:description" content="Move buddha to crush green guys. Don't crush red guys. Game is over if miss reaches 50.">
+<meta property="og:description" content="Move Buddha to crush green guys. Don't crush red guys. Game is over if miss reaches 50.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://obono.github.io/Pico8Works/buddha.html">
 <meta property="og:image" content="https://obono.github.io/Pico8Works/img/thumb_buddha.png">
@@ -18,11 +18,17 @@
 <meta name="twitter:card" content="player">
 <meta name="twitter:site" content="@OBONO">
 <meta name="twitter:title" content="Attack of Buddha">
-<meta name="twitter:description" content="Move buddha to crush green guys. Don't crush red guys. Game is over if miss reaches 50.">
+<meta name="twitter:description" content="Move Buddha to crush green guys. Don't crush red guys. Game is over if miss reaches 50.">
 <meta name="twitter:player" content="https://obono.github.io/Pico8Works/buddha.html?canvas_only">
 <meta name="twitter:player:width" content="256">
 <meta name="twitter:player:height" content="256">
 <meta name="twitter:image" content="https://obono.github.io/Pico8Works/img/thumb_buddha.png">
+
+<meta name="my:version" content="0.30">
+<meta name="my:release_date" content="Oct 27, 2015">
+<meta name="my:instruction" content="&#xce;&#xd7;:Start/Retry game,&#xcb;&#xd1;:Move Buddha">
+<meta name="my:source_url" content="https://github.com/obono/Pico8Works/blob/master/src/buddha.p8">
+<meta name="my:thread_url" content="http://www.lexaloffle.com/bbs/?tid=2671">
 
 <link rel="stylesheet" type="text/css" href="css/style.css">
 <link rel="stylesheet" type="text/css" href="css/style_canvas_only.css" disabled="true" id="canvas_only">
@@ -36,63 +42,9 @@
 <div class="main">
 
 <div class="game">
-<canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-<script type="text/javascript">
-	if (window.location.search.indexOf('canvas_only') != -1) {
-		document.getElementById('canvas_only').disabled = false;
-	}
-	var canvas = document.getElementById("canvas");
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
-	var Module = {};
-	Module.canvas = canvas;
-	function onKeyDown_blocker(event) {
-		event = event || window.event;
-		var o = document.activeElement;
-		if (!o || o == document.body || o.tagName == "canvas") {
-			if ([32, 37, 38, 39, 40].indexOf(event.keyCode) > -1) {
-				if (event.preventDefault) event.preventDefault();
-			}
-		}
-	}
-	document.addEventListener('keydown', onKeyDown_blocker, false);
-</script>
+<canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas><br>
+<script type="text/javascript" src="js/common.js"></script>
 <script async type="text/javascript" src="js/buddha.js"></script>
-<br>
-<div class="pico8_el" onclick="Module.pico8Reset();">
-	<img src="img/reset.png" alt="Reset" width="12" height="12"> Reset
-</div>
-<div class="pico8_el" onclick="Module.pico8TogglePaused();">
-	<img src="img/pause.png" alt="Pause" width="12" height="12"> Pause
-</div>
-<div class="pico8_el" onclick="Module.requestFullScreen(true, false);">
-	<img src="img/fullscreen.png" alt="Fullscreen" width="12" height="12"> Fullscreen
-</div>
-<div class="pico8_el" onclick="Module.pico8ToggleSound();">
-	<img src="img/sound.png" alt="Toggle Sound" width="12" height="12"> Sound
-</div>
-<div class="pico8_el">
-	<a target="_new" href="http://www.lexaloffle.com/bbs/?cat=7&sub=2">
-	<img src="img/carts.png" alt="More Carts" width="12" height="12"> Carts</a>
-</div>
-</div>
-
-<div class="inst">
-<h1>ATTACK OF BUDDHA</h1>
-VERSION 0.30<br>
-(OCT 27, 2015)<br>
-<br>
-MOVE BUDDHA TO CRUSH GREEN GUYS.<br>
-DON'T CRUSH RED GUYS.<br>
-GAME IS OVER IF MISS REACHES 50.<br>
-<dl>
-<dt>&#xce;&#xd7;:</dt>
-<dd>START/RETRY GAME</dd>
-<dt>&#xcb;&#xd1;:</dt>
-<dd>MOVE BUDDHA<dd>
-</dl>
-<a target="_new" href="https://github.com/obono/Pico8Works/blob/master/src/buddha.p8">SOURCE CODE</a><br>
-<a target="_new" href="http://www.lexaloffle.com/bbs/?tid=2671">THREAD IN FORUM</a><br>
 </div>
 
 </div>
