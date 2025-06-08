@@ -2,9 +2,9 @@ pico-8 cartridge // http://www.pico-8.com
 version 4
 __lua__
 
--- hollow seeker v0.61
+-- hollow seeker v0.62
 
---copyright (c) 2015 obono
+--copyright (c) 2015, 2025 obono
 --released under the mit license
 --http://opensource.org/licenses/mit
 
@@ -27,7 +27,7 @@ function draw_logo()
  map(124,28,56,48,2,3) -- b
  map(126,29,74,56,2,2) -- n
  map(125,31,66,72,3,1) -- soft
- print("obn-p01 ver 0.61",
+ print("obn-p01 ver 0.62",
    32,82,6)
 end
 
@@ -226,8 +226,8 @@ function handle_input()
   pv=1 pf=false
  end
  local p=(pp+pv)%18
- local g=min(cv[pp].b-cv[p].t,
-  cv[p].b-cv[pp].t)+cg
+ local g=min(cv[pp].b,cv[p].b)-
+   max(cv[pp].t,cv[p].t)+cg
  if (px+pv<0 or g<8 or pe) then
   pv=0 pa=0
  elseif (pv!=0) then

@@ -14,7 +14,11 @@ Making mini games for [PICO-8](https://www.lexaloffle.com/pico-8.php).
   ![thumbnail](docs/img/thumb_chiepzl.png)
 * OBN-P04 Ishido\
   ![thumbnail](docs/img/thumb_ishido.png)
+* OBN-P05 pXI\
+  ![thumbnail](docs/img/thumb_pxi.png)
+* OBN-P06 LASERS\
+  ![thumbnail](docs/img/thumb_lasers.png)
 
 ## License
 
-These codes are licensed under [MIT-License](LICENSE).
+These codes are licensed under [MIT License](LICENSE).
